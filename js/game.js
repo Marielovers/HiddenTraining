@@ -1344,7 +1344,7 @@ function updateElenaDrones() {
 
                 if (target && drone.cooldown <= 0) {
                     if (Math.abs(drone.x - destX) < 20) {
-                        spawnBullet(drone.x, drone.y, 0, -25, 4, 10, bulletColor, 0.5); 
+                        spawnBullet(drone.x, drone.y, 0, -25, 4, 10, bulletColor, 0.3); 
                         let droneCd = 10;
                         let speedMult = 1;
                         if (haleyLevel > 0 && !player.invincible) {
@@ -1753,20 +1753,31 @@ function updateBoss() {
 
                 b.patternTimer++;
                 let cycle = b.patternTimer % 450; 
-                
-                if (b.bossType === 1) {
-                    if (cycle % 3 === 0) fireSpiral(b, b.patternTimer * 0.25, 7.5, '#00fffa');
-                    if (cycle % 45 === 0) fireAimedFan(b, 3, Math.PI/6, 9, '#fff');
-                } else if (b.bossType === 2) {
-                    if (cycle % 5 === 0) fireSpiral(b, b.patternTimer * 0.1, 4.5, '#ffea00');
-                    if (cycle % 15 === 0) fireRing(b, 18, 4, '#ff0000');
-                } else {
-                    if (cycle < 150) { if (cycle % 4 === 0) fireSpiral(b, b.patternTimer * 0.15, 6, '#ff99ff'); }
-                    else if (cycle < 300) { if (cycle % 30 === 0) fireRing(b, 18, 4.5, '#ff0000'); }
-                    else { if (cycle % 20 === 0) fireAimedFan(b, 5, Math.PI/3, 7.5, '#ffff00'); }
-                }
-            }
 
+let cdBoss1Fan = Math.max(30, 45 - (stage * 2));
+let cdBoss2Ring = Math.max(10, 15 - (stage * 1));
+let cdBoss3Ring = Math.max(20, 30 - (stage * 2));
+let cdBoss3Fan = Math.max(16, 20 - (stage * 1));
+
+if (b.bossType === 1) {
+    if (cycle % 3 === 0) fireSpiral(b, b.patternTimer * 0.25, 7.5, '#00fffa');
+
+    if (b.patternTimer % cdBoss1Fan === 0) fireAimedFan(b, 3, Math.PI/6, 9, '#fff'); 
+} else if (b.bossType === 2) {
+    if (cycle % 5 === 0) fireSpiral(b, b.patternTimer * 0.1, 4.5, '#ffea00');
+    if (b.patternTimer % cdBoss2Ring === 0) fireRing(b, 18, 4, '#ff0000');
+} else {
+    if (cycle < 150) { 
+        if (cycle % 4 === 0) fireSpiral(b, b.patternTimer * 0.15, 6, '#ff99ff'); 
+    }
+    else if (cycle < 300) { 
+        if (b.patternTimer % cdBoss3Ring === 0) fireRing(b, 18, 4.5, '#ff0000'); 
+    }
+    else { 
+        if (b.patternTimer % cdBoss3Fan === 0) fireAimedFan(b, 5, Math.PI/3, 7.5, '#ffff00'); 
+    }
+}
+              
             if (b.hitTimer > 0) b.hitTimer--; 
             
             let imgKey = 'images/boss' + b.bossType + '.png';
@@ -2123,7 +2134,7 @@ function updateEnemies() {
         if (e.x > canvas.width - e.width) e.x = canvas.width - e.width;
 
         if (e.state === 'entering' || e.state === 'idle') {
-            let attackProb = 0.02 + (player.level * 0.003) + (stage * 0.002); 
+            let attackProb = 0.01 + (player.level * 0.001) + (stage * 0.002); 
             if (Math.random() < attackProb) fireRandomBullet(e);
         }
 
@@ -2206,7 +2217,7 @@ function killEnemy(enemy, index) {
     spawnExpOrb(enemy.x, enemy.y); 
 }
 
-function spawnExpOrb(x, y) { expOrbs.push({ x: x + 20, y: y + 20, radius: 6, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, val: 2 }); }
+function spawnExpOrb(x, y) { expOrbs.push({ x: x + 20, y: y + 20, radius: 6, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, val: 5 }); }
 
 function updateExpOrbs() {
     for (let i = expOrbs.length - 1; i >= 0; i--) {
