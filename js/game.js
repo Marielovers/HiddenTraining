@@ -1,6 +1,25 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+function setupHighDPICanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const logicalWidth = 450;
+    const logicalHeight = 700;
+    
+    canvas.style.width = logicalWidth + 'px';
+    canvas.style.height = logicalHeight + 'px';
+    
+    canvas.width = logicalWidth * dpr;
+    canvas.height = logicalHeight * dpr;
+    
+    ctx.scale(dpr, dpr);
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+}
+
+setupHighDPICanvas();
+
 const uiHpBar = document.getElementById('hp-bar');
 const uiHpText = document.getElementById('hp-text');
 const uiXpBar = document.getElementById('xp-bar');
