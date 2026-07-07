@@ -10,8 +10,9 @@
     <div id="game-container">
         <div id="title-screen" class="overlay-screen">
             <div class="main-title">티그 리츠의<br>비행수련</div>
-            <p style="color:#aaa; margin-top:-20px; margin-bottom:30px; font-size:14px;">터치 & 드래그로 이동 / 더블 탭으로 폭탄 사용</p>
+            <p style="color:#d2b48c; margin-top:-20px; margin-bottom:30px; font-size:14px;">터치 & 드래그로 이동 / 더블 탭으로 폭탄 사용</p>
             <button class="start-btn" onclick="goToLoadout()">게임 시작</button>
+            <button class="start-btn" style="margin-top: 15px;" onclick="openDict()">상세 설명</button>
         </div>
 
         <div id="loadout-screen" class="overlay-screen">
@@ -76,6 +77,10 @@
                     <button class="fixed-btn" id="btn-heal" onclick="selectFixedUpgrade('heal')">❤️ 체력 회복</button>
                     <button class="fixed-btn" id="btn-bomb" onclick="selectFixedUpgrade('bomb')">💣 마리 획득</button>
                 </div>
+                <div id="extra-upgrade-container" style="display: flex; gap: 3%; border-top: 2px dashed #5c3a21; padding-top: 2vh; margin-top: 2vh; width: 90%; justify-content: center;">
+                    <button class="fixed-btn" id="btn-reroll" onclick="rerollUpgrade()" style="background:#4a3b2c;">🔄 리롤 (3/3)</button>
+                    <button class="fixed-btn" id="btn-skip" onclick="skipUpgrade()" style="background:#5c2121; border-color:#ff4444; font-size: 2.5vmin;">❌ 포기 (경험치 -50%)</button>
+                </div>
             </div>
             <div id="replace-ui">
                 <div class="modal-title">교체할 위치 선택</div>
@@ -87,47 +92,51 @@
                 <button class="replace-btn" id="btn-replace-cancel">선택 취소</button>
             </div>
         </div>
+
+        <div id="dict-screen" class="overlay-screen" style="display:none; justify-content:flex-start; padding: 5vh 5vw; background: rgba(26, 42, 24, 0.95);">
+            <div style="width:100%; max-width:500px; display:flex; justify-content:space-between; align-items:center; margin-bottom: 2vh;">
+                <h2 style="color:#ffd700; text-shadow: 2px 2px #5c3a21; margin:0;">숲속의 파츠 도감</h2>
+            </div>
+            <div id="dict-list" style="width: 100%; max-width: 500px; display:flex; flex-direction:column; max-height: 70vh; overflow-y:auto; gap: 10px; padding-right: 5px;">
+            </div>
+            <button class="start-btn" style="margin-top: 2vh; padding: 1.5vh 5vw; font-size: 3vmin;" onclick="closeDict()">도감 닫기</button>
+        </div>
     
         <canvas id="gameCanvas" width="450" height="700"></canvas>
     </div>
 
     <script src="js/data.js"></script>
     <script src="js/game.js"></script>
-<script type="module">
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ⚠️ [필수]여기에 본인의 exitbol 프로젝트 파이어베이스 키값을 넣으세요!
         const firebaseConfig = {
-  apiKey: "AIzaSyB5lHhwpQgyPqzLRkUBa0ROkNxKVLAG-Y8",
-  authDomain: "exit-bol.firebaseapp.com",
-  projectId: "exit-bol",
-  storageBucket: "exit-bol.firebasestorage.app",
-  messagingSenderId: "259374629685",
-  appId: "1:259374629685:web:56bdb417ef6269c1b5827c"
-};
+            apiKey: "AIzaSyB5lHhwpQgyPqzLRkUBa0ROkNxKVLAG-Y8",
+            authDomain: "exit-bol.firebaseapp.com",
+            projectId: "exit-bol",
+            storageBucket: "exit-bol.firebasestorage.app",
+            messagingSenderId: "259374629685",
+            appId: "1:259374629685:web:56bdb417ef6269c1b5827c"
+        };
 
-        // 파이어베이스 및 Firestore 초기화
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 1. 글로벌 점수 등록 함수 (Firestore 버전)
-        window.uploadScore = async function(name, scoreVal, stageVal) {
+        window.uploadScore = async function(name, scoreVal, stageVal, leftPartId, rightPartId) {
             try {
-                // 'dualcore_ranking'이라는 컬렉션(폴더)에 데이터를 추가합니다.
                 await addDoc(collection(db, "dualcore_ranking"), {
                     name: name,
                     score: Number(scoreVal),
                     stage: Number(stageVal),
+                    left_part: leftPartId || null,
+                    right_part: rightPartId || null,
                     date: new Date().toISOString()
                 });
-                console.log("Firestore에 랭킹 등록 성공!");
             } catch (e) {
-                console.error("Firestore 점수 등록 실패:", e);
             }
         };
 
-        // 2. 글로벌 랭킹 보드 열기 함수 (Firestore 버전)
         window.showRankingBoard = async function() {
             let board = document.getElementById('ranking-overlay');
             if (!board) {
@@ -138,10 +147,9 @@
                 document.getElementById('game-container').appendChild(board);
             }
             board.style.display = 'flex';
-            board.innerHTML = '<h2 style="color:white; margin-bottom:20px;">글로벌 랭킹</h2><div style="color:#aaa; margin-bottom:20px;">데이터를 불러오는 중...</div>';
+            board.innerHTML = '<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">글로벌 랭킹</h2><div style="color:#d2b48c; margin-bottom:20px;">데이터를 불러오는 중...</div>';
             
             try {
-                // score 기준으로 내림차순(desc) 정렬하여 상위 10개만 쿼리
                 const q = query(collection(db, "dualcore_ranking"), orderBy("score", "desc"), limit(10));
                 const querySnapshot = await getDocs(q);
                 
@@ -150,25 +158,34 @@
                     list.push(doc.data());
                 });
                 
-                let html = '<h2 style="color:white; margin-bottom:20px;">글로벌 랭킹</h2>';
+                let html = '<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">글로벌 랭킹</h2>';
                 html += '<div style="width:100%; max-height:40vh; overflow-y:auto; margin-bottom:30px;">';
                 html += '<table style="width:100%; border-collapse:collapse; text-align:center; font-size:16px; color:white;">';
-                html += '<tr style="border-bottom:2px solid #00f0ff; color:#00f0ff;"><th>순위</th><th>이름</th><th>점수</th><th>스테이지</th></tr>';
+                html += '<tr style="border-bottom:2px solid #d2b48c; color:#ffd700;"><th>순위</th><th>이름</th><th>조합</th><th>점수</th><th>스테이지</th></tr>';
                 
                 if (list.length === 0) {
-                    html += '<tr><td colspan="4" style="padding:15px; color:#aaa;">등록된 랭킹이 없습니다.</td></tr>';
+                    html += '<tr><td colspan="5" style="padding:15px; color:#d2b48c;">등록된 랭킹이 없습니다.</td></tr>';
                 } else {
                     list.forEach((item, idx) => {
-                        html += `<tr style="border-bottom:1px solid #333;"><td style="padding:10px;">${idx+1}</td><td>${item.name || '무명'}</td><td style="color:#ffff00;">${item.score}</td><td>${item.stage}</td></tr>`;
+                        let leftName = (item.left_part && typeof PARTS_INFO !== 'undefined' && PARTS_INFO[item.left_part]) ? PARTS_INFO[item.left_part].name : '없음';
+                        let rightName = (item.right_part && typeof PARTS_INFO !== 'undefined' && PARTS_INFO[item.right_part]) ? PARTS_INFO[item.right_part].name : '없음';
+                        
+                        let comboText = (leftName === '없음' && rightName === '없음') ? '없음' : `${leftName} & ${rightName}`;
+
+                        html += `<tr style="border-bottom:1px solid #3e2723;">
+                                    <td style="padding:10px;">${idx+1}</td>
+                                    <td>${item.name || '무명'}</td>
+                                    <td style="font-size:13px; color:#adff2f;">${comboText}</td>
+                                    <td style="color:#ffd700;">${item.score}</td>
+                                    <td>${item.stage}</td>
+                                 </tr>`;
                     });
                 }
                 html += '</table></div>';
                 
-                // 닫기 버튼 생성
                 html += '<button class="start-btn" onclick="document.getElementById(\'ranking-overlay\').style.display=\'none\'">닫기</button>';
                 board.innerHTML = html;
                 
-                // 다시하기 버튼 동적 생성 및 기존 game.js의 resetToTitle 함수 연동
                 let restartBtn = document.createElement('button');
                 restartBtn.className = 'start-btn';
                 restartBtn.style.marginTop = '15px';
@@ -180,8 +197,7 @@
                 board.appendChild(restartBtn);
                 
             } catch (e) {
-                console.error("Firestore 랭킹 로드 실패:", e);
-                board.innerHTML = '<h2 style="color:white; margin-bottom:20px;">글로벌 랭킹</h2><div style="color:red; margin-bottom:20px;">데이터 로드 실패</div><button class="start-btn" onclick="document.getElementById(\'ranking-overlay\').style.display=\'none\'">닫기</button>';
+                board.innerHTML = '<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">글로벌 랭킹</h2><div style="color:#dc143c; margin-bottom:20px;">데이터 로드 실패</div><button class="start-btn" onclick="document.getElementById(\'ranking-overlay\').style.display=\'none\'">닫기</button>';
                 
                 let restartBtn = document.createElement('button');
                 restartBtn.className = 'start-btn';

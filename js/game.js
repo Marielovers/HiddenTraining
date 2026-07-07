@@ -27,6 +27,7 @@ let minimiList = [];
 let audioCtx;
 let bgmAudio = null;
 let lobbyAudio = null;
+let savedGameState = "playing";
 
 function initAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -117,6 +118,9 @@ function stopAllMusic() {
     }
 }
 
+let launchTimer = 0;
+let launchY = 0;
+let launchVy = 0;
 
 async function preloadAssets() {
     const response = await fetch('minimi_list.json');
@@ -124,6 +128,7 @@ async function preloadAssets() {
     minimiList = data.minimi_images;
 
     const imgSources = [
+        'images/forest.webp',
         'images/올림.png',
         'images/내림.png',
         'minimi/우로스.png',
@@ -438,12 +443,20 @@ function startGame() {
     
     score = 0; 
     frame = 0; 
+    nextSpawnFrame = 0; 
+    flashTimer = 0;    
+    
     player.hp = 100; 
     player.bombs = 3; 
     player.level = 1; 
     player.currentExp = 0; 
     player.maxExp = 50;
+    player.rerolls = 3;
     stage = 1;
+    
+    player.invincible = false;  
+    player.invincibleTimer = 0; 
+    player.deathTimer = 0;      
     
     player.elenaDrones = []; 
     player.IfritOrbs = []; 
@@ -481,7 +494,16 @@ function startGame() {
     
     player.x = canvas.width / 2 - player.width / 2;
     player.y = canvas.height + 50;
-    gameState = "stage_start_sequence";
+
+    gameState = "launch_sequence";
+    launchTimer = 0;
+    launchY = canvas.height - player.height - 200;
+    launchVy = 0;
+    
+    fadeAlpha = 1;
+    displayStageTextTimer = 120;
+    displayClearTextTimer = 0;
+
     fadeAlpha = 1;
     displayStageTextTimer = 120;
     displayClearTextTimer = 0;
@@ -490,9 +512,10 @@ function startGame() {
     if (player.gabiaMaxShield > 0) {
         player.gabiaShield = player.gabiaMaxShield;
     }
+    
     then = Date.now();
     updateUI();
-    animate();
+    
 }
 
 function handleUpgradeKey(code) {
@@ -500,39 +523,33 @@ function handleUpgradeKey(code) {
         if (code === 'ArrowRight') {
             if(upgradeSelectedIndex < 2) upgradeSelectedIndex++;
             else if(upgradeSelectedIndex === 3) upgradeSelectedIndex = 4;
+            else if(upgradeSelectedIndex === 5) upgradeSelectedIndex = 6;
         }
         if (code === 'ArrowLeft') {
             if(upgradeSelectedIndex > 0 && upgradeSelectedIndex <= 2) upgradeSelectedIndex--;
             else if(upgradeSelectedIndex === 4) upgradeSelectedIndex = 3;
+            else if(upgradeSelectedIndex === 6) upgradeSelectedIndex = 5;
         }
         if (code === 'ArrowDown') {
             if(upgradeSelectedIndex <= 1) upgradeSelectedIndex = 3;
             else if(upgradeSelectedIndex === 2) upgradeSelectedIndex = 4;
+            else if(upgradeSelectedIndex === 3) upgradeSelectedIndex = 5;
+            else if(upgradeSelectedIndex === 4) upgradeSelectedIndex = 6;
         }
         if (code === 'ArrowUp') {
             if(upgradeSelectedIndex === 3) upgradeSelectedIndex = 1;
             else if(upgradeSelectedIndex === 4) upgradeSelectedIndex = 2;
+            else if(upgradeSelectedIndex === 5) upgradeSelectedIndex = 3;
+            else if(upgradeSelectedIndex === 6) upgradeSelectedIndex = 4;
         }
         if (code === 'KeyZ') confirmSelection();
         updateUpgradeVisuals();
     } else {
-        if (code === 'ArrowLeft') {
-            if(replaceSelection === 'right') replaceSelection = 'left';
-        }
-        if (code === 'ArrowRight') {
-            if(replaceSelection === 'left') replaceSelection = 'right';
-        }
-        if (code === 'ArrowDown') {
-            if(replaceSelection === 'left' || replaceSelection === 'right') replaceSelection = 'cancel';
-        }
-        if (code === 'ArrowUp') {
-            if(replaceSelection === 'cancel') replaceSelection = 'left';
-        }
-
-        if (code === 'KeyZ') {
-            if (replaceSelection === 'cancel') cancelReplace();
-            else replacePart(replaceSelection);
-        }
+        if (code === 'ArrowLeft') { if(replaceSelection === 'right') replaceSelection = 'left'; }
+        if (code === 'ArrowRight') { if(replaceSelection === 'left') replaceSelection = 'right'; }
+        if (code === 'ArrowDown') { if(replaceSelection === 'left' || replaceSelection === 'right') replaceSelection = 'cancel'; }
+        if (code === 'ArrowUp') { if(replaceSelection === 'cancel') replaceSelection = 'left'; }
+        if (code === 'KeyZ') { if (replaceSelection === 'cancel') cancelReplace(); else replacePart(replaceSelection); }
         if (code === 'Escape') cancelReplace();
         updateReplaceVisuals();
     }
@@ -542,14 +559,21 @@ function updateUpgradeVisuals() {
     const cards = document.querySelectorAll('.card');
     const btnHeal = document.getElementById('btn-heal');
     const btnBomb = document.getElementById('btn-bomb');
+    const btnReroll = document.getElementById('btn-reroll');
+    const btnSkip = document.getElementById('btn-skip');
+
     cards.forEach(c => c.classList.remove('highlighted'));
     btnHeal.classList.remove('highlighted');
     btnBomb.classList.remove('highlighted');
+    if (btnReroll) btnReroll.classList.remove('highlighted');
+    if (btnSkip) btnSkip.classList.remove('highlighted');
+
     if (upgradeSelectedIndex <= 2) { if(cards[upgradeSelectedIndex]) cards[upgradeSelectedIndex].classList.add('highlighted'); } 
     else if (upgradeSelectedIndex === 3) { btnHeal.classList.add('highlighted'); } 
     else if (upgradeSelectedIndex === 4) { btnBomb.classList.add('highlighted'); }
+    else if (upgradeSelectedIndex === 5 && btnReroll) { btnReroll.classList.add('highlighted'); }
+    else if (upgradeSelectedIndex === 6 && btnSkip) { btnSkip.classList.add('highlighted'); }
 }
-
 function updateReplaceVisuals() {
     const btnLeft = document.getElementById('btn-replace-left');
     const btnRight = document.getElementById('btn-replace-right');
@@ -573,7 +597,9 @@ function confirmSelection() {
         else if(player.rightPart.id === partId) currentLevel = player.rightPart.level;
         if (!(isOwned && currentLevel >= 5)) { selectUpgradePart(partId); }
     } else if (upgradeSelectedIndex === 3) { selectFixedUpgrade('heal'); } 
-    else if (upgradeSelectedIndex === 4) { selectFixedUpgrade('bomb'); }
+    else if (upgradeSelectedIndex === 4 && player.bombs < 3) { selectFixedUpgrade('bomb'); }
+    else if (upgradeSelectedIndex === 5 && player.rerolls > 0) { rerollUpgrade(); }
+    else if (upgradeSelectedIndex === 6) { skipUpgrade(); }
 }
 
 function animate() {
@@ -585,7 +611,65 @@ function animate() {
     if (elapsed > fpsInterval) {
         then = now - (elapsed % fpsInterval);
 
-        if (gameState !== "playing" && gameState !== "gameover_sequence" && gameState !== "gameover" && gameState !== "stage_clear_sequence" && gameState !== "stage_start_sequence") return;
+        if (gameState !== "playing" && gameState !== "gameover_sequence" && gameState !== "gameover" && gameState !== "stage_clear_sequence" && gameState !== "stage_start_sequence" && gameState !== "launch_sequence") return;
+
+        if (gameState === "launch_sequence") {
+            if (IMAGES['images/forest.webp']) {
+                ctx.drawImage(IMAGES['images/forest.webp'], 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            updateParticles(); 
+
+            let scale = 3;
+            let shipW = player.width * scale;
+            let shipX = canvas.width / 2 - shipW / 2;
+            let ratio = IMAGES['images/올림.png'] ? IMAGES['images/올림.png'].height / IMAGES['images/올림.png'].width : 1;
+let shipH = shipW * ratio;
+
+            if (launchTimer < 90) { 
+                let shakeX = (Math.random() - 0.5) * 12;
+                let shakeY = (Math.random() - 0.5) * 12;
+                if (IMAGES['images/내림.png']) {
+                    ctx.drawImage(IMAGES['images/내림.png'], shipX + shakeX, launchY + shakeY, shipW, shipH);
+                }
+            } else { 
+                if (launchTimer === 90) playSound('massive_explode'); 
+                
+                launchVy += 0.15; 
+                launchY -= launchVy;
+
+                for (let i = 0; i < 15; i++) {
+                    particles.push({
+                        x: shipX + shipW / 2 + (Math.random() - 0.5) * 60,
+                        y: launchY + shipH,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: Math.random() * 6 + 2, 
+                        life: 40 + Math.random() * 30,
+                        maxLife: 70,
+                        color: Math.random() > 0.5 ? 'rgba(230, 230, 230, 0.8)' : 'rgba(150, 150, 150, 0.8)',
+                        size: 20 + Math.random() * 40
+                    });
+                }
+
+                if (IMAGES['images/올림.png']) {
+                    ctx.drawImage(IMAGES['images/올림.png'], shipX, launchY, shipW, shipH);
+                }
+
+                if (launchY < -200) {
+                    gameState = "stage_start_sequence";
+                    player.x = canvas.width / 2 - player.width / 2;
+                    player.y = canvas.height + 50; 
+                    fadeAlpha = 1;
+                    displayStageTextTimer = 120;
+                }
+            }
+            
+            launchTimer++;
+            frame++;
+            return; 
+        }
 
         if (gameState === "stage_clear_sequence") {
             player.y -= 6;
@@ -725,12 +809,12 @@ function animate() {
                 gameState = "gameover";
                 const pName = prompt(`게임 오버! 당신의 점수: ${score}\n랭킹에 등록할 이름을 입력하세요:`);
                 if (pName) {
-                    window.uploadScore(pName, score, stage).then(() => { 
-                        window.showRankingBoard();  
-                    });
-                } else {
-                     window.showRankingBoard(); 
-                }
+    window.uploadScore(pName, score, stage, player.leftPart.id, player.rightPart.id).then(() => { 
+        window.showRankingBoard();  
+    });
+} else {
+    window.showRankingBoard(); 
+}
             }
             } else if (gameState === "gameover") {
                 drawGameOver();
@@ -1111,7 +1195,7 @@ function processPartAction(part, side) {
             if (Math.random() < lazyChance) {
                 if (hasNer && lazyChance < 0.2) {
                     if (hasNer && lazyChance < 0.002) {
-                        player.bombs++;
+                        player.bombs = Math.min(5, player.bombs + 1);
                         createParticles(bx, player.y, '#00ff00'); 
                         updateUI();
                     }
@@ -2065,8 +2149,8 @@ function fireRandomBullet(enemy) {
 }
 
 function spawnEnemy() {
-    let hp = Math.max(1, (5 + (stage - 1) * 3) / 2); 
-    let destY = 50 + Math.random() * 250; 
+    let hp = Math.min(10, Math.max(1, 2.5 + (stage - 1) * 0.5)); 
+    let destY = 50 + Math.random() * 250;
     
     let randomImg = minimiList.length > 0 
                     ? `minimi/${minimiList[Math.floor(Math.random() * minimiList.length)]}` 
@@ -2119,7 +2203,7 @@ function killEnemy(enemy, index) {
     spawnExpOrb(enemy.x, enemy.y); 
 }
 
-function spawnExpOrb(x, y) { expOrbs.push({ x: x + 20, y: y + 20, radius: 6, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, val: 5 }); }
+function spawnExpOrb(x, y) { expOrbs.push({ x: x + 20, y: y + 20, radius: 6, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, val: 2 }); }
 
 function updateExpOrbs() {
     for (let i = expOrbs.length - 1; i >= 0; i--) {
@@ -2138,7 +2222,11 @@ function updateExpOrbs() {
             ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI*2); 
             ctx.fill(); 
         }
-        if (dist < 30 && gameState === "playing") { gainExp(orb.val); expOrbs.splice(i, 1); continue; }
+        if (dist < 30 && (gameState === "playing" || gameState === "stage_clear_sequence" || gameState === "stage_start_sequence")) { 
+    gainExp(orb.val); 
+    expOrbs.splice(i, 1); 
+    continue; 
+}
         if (orb.y > canvas.height + 20) { expOrbs.splice(i, 1); }
     }
 }
@@ -2214,11 +2302,22 @@ function updateUI() {
     }
 }
 
-function showUpgradeModal() {
-    gameState = "paused"; modal.style.display = "flex"; selectUi.style.display = "flex"; replaceUi.style.display = "none";
+function showUpgradeModal(isReroll = false) {
+    if (!isReroll) {
+        savedGameState = gameState; 
+    }
+    gameState = "paused"; 
+    modal.style.display = "flex"; 
+    selectUi.style.display = "flex"; 
+    replaceUi.style.display = "none";
     upgradeSelectedIndex = 0;
-    let keys = Object.keys(PARTS_INFO); keys.sort(() => Math.random() - 0.5); let choices = keys.slice(0, 3);
+    
+    let keys = Object.keys(PARTS_INFO); 
+    
+    keys.sort(() => Math.random() - 0.5);
+    let choices = keys.slice(0, 3);
     currentUpgradeChoices = choices; 
+    
     cardList.innerHTML = "";
     choices.forEach((key, idx) => {
         let info = PARTS_INFO[key]; 
@@ -2227,15 +2326,45 @@ function showUpgradeModal() {
         let currentLevel = 0;
         if(player.leftPart.id === key) currentLevel = player.leftPart.level;
         else if(player.rightPart.id === key) currentLevel = player.rightPart.level;
+        
         let isMax = (isOwned && currentLevel >= 5);
         if(isMax) div.classList.add('disabled');
-        div.innerHTML = `${isMax ? '<div class="max-badge">MAX</div>' : ''}<div class="card-icon" style="background:transparent;"><img src="minimi/${info.name}.png" style="width:100%; height:100%; object-fit:contain;"></div><div class="card-name" style="color:${info.color}">${info.name}</div><div class="card-desc">${info.desc}</div><div class="card-level">${isOwned ? 'Lv.' + currentLevel + (isMax ? ' (MAX)' : ' -> ' + (currentLevel+1)) : 'New!'}</div>`;
-        div.onclick = () => { if(!isMax) selectUpgradePart(key); }; cardList.appendChild(div);
+        
+        div.innerHTML = `${isMax ? '<div class="max-badge">MAX</div>' : ''}<div class="card-icon"><img src="minimi/${info.name}.png" style="width:100%; height:100%; object-fit:contain;"></div><div class="card-name" style="color:${info.color}">${info.name}</div><div class="card-desc">${info.desc}</div><div class="card-level">${isOwned ? 'Lv.' + currentLevel + (isMax ? ' (MAX)' : ' -> ' + (currentLevel+1)) : 'New!'}</div>`;
+        div.onclick = () => { if(!isMax) selectUpgradePart(key); }; 
+        cardList.appendChild(div);
     });
+
+    const btnReroll = document.getElementById('btn-reroll');
+    if (btnReroll) {
+        btnReroll.innerText = `🔄 리롤 (${player.rerolls}/3)`;
+        if (player.rerolls <= 0) {
+            btnReroll.style.opacity = '0.5'; btnReroll.style.pointerEvents = 'none';
+        } else {
+            btnReroll.style.opacity = '1'; btnReroll.style.pointerEvents = 'auto';
+        }
+    }
+    const btnBomb = document.getElementById('btn-bomb');
+    if (btnBomb) {
+        if (player.bombs >= 3) {
+            btnBomb.style.opacity = '0.5'; btnBomb.style.pointerEvents = 'none'; btnBomb.innerText = '💣 마리 최대치 도달';
+        } else {
+            btnBomb.style.opacity = '1'; btnBomb.style.pointerEvents = 'auto'; btnBomb.innerText = '💣 마리 획득';
+        }
+    }
+
     updateUpgradeVisuals();
 }
 
-function selectFixedUpgrade(type) { if (type === 'heal') player.hp = Math.min(player.maxHp, player.hp + 20); else if (type === 'bomb') player.bombs++; updateUI(); finishUpgrade(); }
+function selectFixedUpgrade(type) { 
+    if (type === 'heal') {
+        player.hp = Math.min(player.maxHp, player.hp + 20); 
+    } else if (type === 'bomb') {
+        player.bombs = Math.min(5, player.bombs + 1);
+    }
+    updateUI(); 
+    finishUpgrade(); 
+}
 
 function selectUpgradePart(partId) {
     if (player.leftPart.id === partId) { if(player.leftPart.level < 5) { player.leftPart.level++; finishUpgrade(); } } 
@@ -2283,7 +2412,15 @@ function replacePart(side) {
 }
 
 function cancelReplace() { replaceUi.style.display = "none"; selectUi.style.display = "flex"; }
-function finishUpgrade() { modal.style.display = "none"; gameState = "playing"; updatePlayerStats(); player.invincible = true; player.invincibleTimer = 60; animate(); }
+function finishUpgrade() { 
+    modal.style.display = "none"; 
+    
+    gameState = savedGameState; 
+    
+    updatePlayerStats(); 
+    player.invincible = true; 
+    player.invincibleTimer = 60; 
+}
 
 function createParticles(x, y, color) { 
     for(let i=0; i<8; i++) { 
@@ -2548,7 +2685,7 @@ function useBomb() {
         // 3. 보스에게 데미지
         bosses.forEach(b => {
             if (b.state !== 'dying') {
-                b.hp -= 300; 
+                b.hp -= 100; 
                 b.hitTimer = 10;
                 createParticles(b.x + b.width / 2, b.y + b.height / 2, 'orange');
                 if (b.hp <= 0) killBoss(b);
@@ -2557,4 +2694,77 @@ function useBomb() {
 
         updateUI();
     }
+}
+
+const EXTENDED_DICT = {
+    tig: "검을 쪼개서 두개씩 탄환을 발사합니다. 레벨이 오를수록 연사력이 극대화됩니다. (최대레벨 시 쿨다운이 절반으로 감소)",
+    leets: "보라색 탄환을 발사합니다. 맞으면 광폭화하여 모든 데미지를 100% 증가시키며, 공격력 배율은 레벨당 20%씩 증가합니다.",
+    Ifrit: "주변을 맴도는 불의 정령을 최대 5~15개 소환합니다. 적이 탐지 사거리에 들어오면 유도 미사일처럼 날아갑니다.",
+    pira: "갈색 탄환을 쏘며, 장착 시 경험치 획득량이 레벨당 20% 씩 증가합니다. ",
+    diana: "황철석색 탄환을 쏘며, 적에게 입힌 데미지의 5%만큼 체력을 회복합니다. 슈로와 같이 쓰지 마세요.",
+    elena: "레벨당 1개씩 적을 끝까지 쫓아다니며 지속적인 딜을 넣는 유도 드론을 생성합니다.",
+    shasha: "전방을 향해 넓은 부채꼴로 다수의 탄환을 흩뿌립니다. 레벨당 발사되는 탄환 수가 1개씩 늘어납니다.",
+    silphir: "파란 탄환을 발사하며, 게임 진행 시간(최대 5분)에 비례하여 모든 파츠의 데미지를 최대 1.5배~2.5배까지 서서히 증가시키는 대기만성형입니다.",
+    lethe: "일정 주기마다 전방의 모든 것을 관통하는 강력한 레이저를 발사합니다.",
+    haley: "빨간색색 탄환을 쏘며, 이동 속도와 공격 속도를 레벨당 10%씩 올려줍니다. 무적 상태일 때는 공속이 2배로 폭증합니다.",
+    amelia: "회색색 탄환을 쏘며, 모든 탄환에 유도 기능을 부여합니다.",
+    shady: "회색 탄환을 쏘며, 적의 공격에 피격당할 때 레벨당 40% ~ 80%의 높은 확률로 데미지를 회피합니다.",
+    rim: "전방으로 붉은 탄환 뭉치를 발사합니다. 피격 시 광림 상태가 되며 공격 속도가 2배가 됩니다",
+    asana: "녹색 탄환을 쏘며, 장착 시 볼-요가 효과로 최대 체력이 레벨당 10% 증가하며, 매 1초마다 지속적으로 체력을 자동 회복합니다.",
+    Belita: "붉은색 기탄을 발사하며, 현재 체력에 따라 쏘아내는 붉은 기탄의 크기와 공격력이 폭발적으로 증가합니다.",
+    kidian: "검은 탄환을 부채꼴과 직선으로 섞어 쏩니다. 전체 레벨에 정비례하여 끝없이 데미지가 오릅니다",
+    naia: "주변을 공전하며 다방향으로 물총을 쏘는 나이아 미니미를 3개 이상 생성합니다. 나이아 미니미의 개수는 1~3개에서 지맘대로 바뀝니다. 퓨퓨!",
+    barie: "보라색 탄환을 쏩니다. 반대편 미니미의 공격을 그대로 복제합니다. 책 딸깍!",
+    gabia: "갈색 탄환을 쏩니다. 피해를 100% 흡수하는 나무 방어막을 생성합니다. 방어막이 깨지면 서서히 재충전됩니다.",
+    suro: "웨이브 형태의 탄막을 쏘며, 피격당한 횟수 1번당 공격력이 1%씩 누적 증가합니다(최대 100회).",
+    erpin: "황금 산탄을 난사합니다. 20% 확률로 공격을 쉬고 체력을 1 회복시킵니다. 네르랑 함께 있으면 마리랑 놀러간다고 사라지곤 합니다.",
+    ner: "시한폭탄 구체를 날립니다. 20% 확률로 배신합니다, 에르핀과 조합하면 배신하지 않습니다."
+};
+
+function openDict() {
+    initAudio();
+    playLobbyMusic();
+    document.getElementById('dict-screen').style.display = 'flex';
+    const list = document.getElementById('dict-list');
+    list.innerHTML = "";
+    
+    // 데이터 렌더링
+    Object.keys(PARTS_INFO).forEach(key => {
+        let info = PARTS_INFO[key];
+        let desc = EXTENDED_DICT[key] || info.desc;
+        
+        let card = document.createElement('div');
+        card.className = 'dict-card';
+        
+        card.innerHTML = `
+            <div class="dict-icon">
+                <img src="minimi/${info.name}.png" style="width:100%; height:100%; object-fit:contain;" alt="${info.name}">
+            </div>
+            <div class="dict-text-box">
+                <div class="dict-name" style="color: ${info.color}">${info.name}</div>
+                <div class="dict-desc">${desc}</div>
+            </div>
+        `;
+        list.appendChild(card);
+    });
+}
+
+function closeDict() {
+    document.getElementById('dict-screen').style.display = 'none';
+}
+
+function rerollUpgrade() {
+    if (player.rerolls > 0) {
+        player.rerolls--;
+        showUpgradeModal(true);
+    }
+}
+
+function skipUpgrade() {
+    player.level--;
+    player.maxExp -= 10;
+    player.currentExp = Math.floor(player.maxExp / 2);
+    
+    updateUI();
+    finishUpgrade(); 
 }

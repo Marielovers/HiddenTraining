@@ -5,7 +5,7 @@ const PARTS_INFO = {
     Ifrit: { name: "이프리트", color: "red", desc: "불의 정령을 던집니다", type: "orbit" },
     pira: { name: "피라", color: "#ffd700", desc: "사기를 쳐서 경험치를 추가로 획득합니다", type: "normal" },
     diana: { name: "디아나", color: "#8b4513", desc: "입힌 데미지 만큼 회복합니다", type: "normal" },
-    elena: { name: "엘레나", color: "cyan", desc: "드론 만들어 적을 추적 공격합니다", type: "special" },
+    elena: { name: "엘레나", color: "cyan", desc: "드론을 만들어 적을 추적 공격합니다", type: "special" },
     shasha: { name: "샤샤", color: "navy", desc: "부아아악", type: "normal" },
     silphir: { name: "실피르", color: "lightskyblue", desc: "게임 진행 시간에 비례해서 강해집니다", type: "normal" },
     lethe: { name: "레테", color: "gray", desc: "레이저 비이이이임", type: "laser" },
@@ -20,6 +20,6 @@ const PARTS_INFO = {
     barie: { name: "바리에", color: "purple", desc: "옆 미니미의 공격을 복제합니다", type: "special" },
     gabia: { name: "빅우드", color: "#8B4513", desc: "보호막을 만들어줍니다", type: "defense" },
     suro: { name: "슈로", color: "#800000", desc: "맞은 횟수마다 공격력이 오릅니다", type: "normal" },
-    erpin: { name: "에르핀(왕도)", color: "#FFD700", desc: "무작위로 산탄을 발사합니다. 10% 확률로 회복합니다. (Ner가 있으면 20% 확률로 마리와 놀러갑니다).", type: "special" },
-    ner: { name: "네르(빡침)", color: "#FF8C00", desc: "탄막 구체를 던집니다. 20% 확률로 배신합니다. 에르핀과 함께면 배신하지 않습니다", type: "special" }
+    erpin: { name: "에르핀(왕도)", color: "#FFD700", desc: "무작위로 산탄을 발사합니다", type: "special" },
+    ner: { name: "네르(빡침)", color: "#FF8C00", desc: "탄막 구체를 던집니다. 20% 확률로 배신합니다", type: "special" }
 };
