@@ -600,7 +600,7 @@ function confirmSelection() {
         else if(player.rightPart.id === partId) currentLevel = player.rightPart.level;
         if (!(isOwned && currentLevel >= 5)) { selectUpgradePart(partId); }
     } else if (upgradeSelectedIndex === 3) { selectFixedUpgrade('heal'); } 
-    else if (upgradeSelectedIndex === 4 && player.bombs < 3) { selectFixedUpgrade('bomb'); }
+    else if (upgradeSelectedIndex === 4 && player.bombs < 5) { selectFixedUpgrade('bomb'); }
     else if (upgradeSelectedIndex === 5 && player.rerolls > 0) { rerollUpgrade(); }
     else if (upgradeSelectedIndex === 6) { skipUpgrade(); }
 }
@@ -2217,7 +2217,7 @@ function killEnemy(enemy, index) {
     spawnExpOrb(enemy.x, enemy.y); 
 }
 
-function spawnExpOrb(x, y) { expOrbs.push({ x: x + 20, y: y + 20, radius: 6, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, val: 5 }); }
+function spawnExpOrb(x, y) { expOrbs.push({ x: x + 20, y: y + 20, radius: 6, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, val: 2.5 }); }
 
 function updateExpOrbs() {
     for (let i = expOrbs.length - 1; i >= 0; i--) {
