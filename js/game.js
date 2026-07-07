@@ -2313,9 +2313,26 @@ function showUpgradeModal(isReroll = false) {
     upgradeSelectedIndex = 0;
     
     let keys = Object.keys(PARTS_INFO); 
+    let pool = [];
+
+    keys.forEach(key => {
+        pool.push(key); 
+        
+        if (player.leftPart.id === key || player.rightPart.id === key) {
+            pool.push(key); 
+            pool.push(key); 
+        }
+    });
     
-    keys.sort(() => Math.random() - 0.5);
-    let choices = keys.slice(0, 3);
+    pool.sort(() => Math.random() - 0.5);
+    
+    let choices = [];
+    for (let i = 0; i < pool.length; i++) {
+        if (!choices.includes(pool[i])) {
+            choices.push(pool[i]);
+        }
+        if (choices.length === 3) break;
+    }
     currentUpgradeChoices = choices; 
     
     cardList.innerHTML = "";
