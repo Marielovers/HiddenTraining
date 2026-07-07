@@ -1777,7 +1777,7 @@ if (b.bossType === 1) {
         if (b.patternTimer % cdBoss3Fan === 0) fireAimedFan(b, 5, Math.PI/3, 7.5, '#ffff00'); 
     }
 }
-              
+}              
             if (b.hitTimer > 0) b.hitTimer--; 
             
             let imgKey = 'images/boss' + b.bossType + '.png';
