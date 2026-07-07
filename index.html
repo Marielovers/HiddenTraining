@@ -150,7 +150,7 @@
             board.innerHTML = '<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">글로벌 랭킹</h2><div style="color:#d2b48c; margin-bottom:20px;">데이터를 불러오는 중...</div>';
             
             try {
-                const q = query(collection(db, "dualcore_ranking"), orderBy("score", "desc"), limit(10));
+                const q = query(collection(db, "dualcore_ranking"), orderBy("score", "desc"), limit(100));
                 const querySnapshot = await getDocs(q);
                 
                 let list = [];
