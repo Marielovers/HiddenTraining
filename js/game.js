@@ -81,7 +81,7 @@ function playLobbyMusic() {
         try {
             lobbyAudio = new Audio('lobby.wav');
             lobbyAudio.loop = true;
-            lobbyAudio.volume = 0.5;
+            lobbyAudio.volume = 0.2;
         } catch(e) {}
     }
     if (lobbyAudio) {
@@ -98,7 +98,7 @@ function playBgmMusic() {
         try {
             bgmAudio = new Audio('bgm.wav');
             bgmAudio.loop = true;
-            bgmAudio.volume = 0.5;
+            bgmAudio.volume = 0.2;
         } catch(e) {}
     }
     if (bgmAudio) {
@@ -117,7 +117,6 @@ function stopAllMusic() {
     }
 }
 
-const FIREBASE_URL = "https://dualcoreshooter-default-rtdb.firebaseio.com/ranking.json";
 
 async function preloadAssets() {
     const response = await fetch('minimi_list.json');
@@ -294,73 +293,10 @@ function createRankingButton() {
     rankBtn.className = 'start-btn';
     rankBtn.style.marginTop = '15px';
     rankBtn.innerText = '랭킹 보기';
-    rankBtn.onclick = showRankingBoard;
+    rankBtn.onclick = () => window.showRankingBoard();
     titleScreen.appendChild(rankBtn);
 }
 
-async function showRankingBoard() {
-    let board = document.getElementById('ranking-overlay');
-    if (!board) {
-        board = document.createElement('div');
-        board.id = 'ranking-overlay';
-        board.className = 'overlay-screen';
-        board.style.display = 'flex';
-        document.getElementById('game-container').appendChild(board);
-    }
-    board.style.display = 'flex';
-    board.innerHTML = '<h2 style="color:white; margin-bottom:20px;">글로벌 랭킹</h2><div style="color:#aaa; margin-bottom:20px;">데이터를 불러오는 중...</div>';
-    
-    try {
-        const res = await fetch(FIREBASE_URL);
-        const data = await res.json();
-        let list = [];
-        if (data) {
-            Object.keys(data).forEach(k => {
-                list.push(data[k]);
-            });
-            list.sort((a, b) => b.score - a.score);
-        }
-        list = list.slice(0, 10);
-        
-        let html = '<h2 style="color:white; margin-bottom:20px;">글로벌 랭킹</h2>';
-        html += '<div style="width:100%; max-height:40vh; overflow-y:auto; margin-bottom:30px;">';
-        html += '<table style="width:100%; border-collapse:collapse; text-align:center; font-size:16px; color:white;">';
-        html += '<tr style="border-bottom:2px solid #00f0ff; color:#00f0ff;"><th>순위</th><th>이름</th><th>점수</th><th>스테이지</th></tr>';
-        if (list.length === 0) {
-            html += '<tr><td colspan="4" style="padding:15px; color:#aaa;">등록된 랭킹이 없습니다.</td></tr>';
-        } else {
-            list.forEach((item, idx) => {
-                html += `<tr style="border-bottom:1px solid #333;"><td style="padding:10px;">${idx+1}</td><td>${item.name}</td><td style="color:#ffff00;">${item.score}</td><td>${item.stage}</td></tr>`;
-            });
-        }
-        html += '</table></div>';
-        html += '<button class="start-btn" onclick="document.getElementById(\'ranking-overlay\').style.display=\'none\'">닫기</button>';
-        
-        let restartBtn = document.createElement('button');
-        restartBtn.className = 'start-btn';
-        restartBtn.style.marginTop = '15px';
-        restartBtn.innerText = '다시하기';
-        restartBtn.onclick = () => {
-            document.getElementById('ranking-overlay').style.display='none';
-            resetToTitle();
-        };
-        board.appendChild(restartBtn);
-        
-        board.innerHTML = html;
-        board.appendChild(restartBtn);
-    } catch(e) {
-        board.innerHTML = '<h2 style="color:white; margin-bottom:20px;">글로벌 랭킹</h2><div style="color:red; margin-bottom:20px;">데이터 로드 실패</div><button class="start-btn" onclick="document.getElementById(\'ranking-overlay\').style.display=\'none\'">닫기</button>';
-        let restartBtn = document.createElement('button');
-        restartBtn.className = 'start-btn';
-        restartBtn.style.marginTop = '15px';
-        restartBtn.innerText = '다시하기';
-        restartBtn.onclick = () => {
-            document.getElementById('ranking-overlay').style.display='none';
-            resetToTitle();
-        };
-        board.appendChild(restartBtn);
-    }
-}
 
 function resetToTitle() {
     stopAllMusic();
@@ -378,15 +314,6 @@ function resetToTitle() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-async function uploadScore(name, scoreVal, stageVal) {
-    try {
-        await fetch(FIREBASE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: name, score: scoreVal, stage: stageVal, date: new Date().toISOString() })
-        });
-    } catch(e) {}
-}
 
 let currentSelectionTarget = 'left';
 
@@ -795,16 +722,16 @@ function animate() {
                      playSound('explode');
                 }
                 if (player.deathTimer <= 0) {
-                    gameState = "gameover";
-                    const pName = prompt(`게임 오버! 당신의 점수: ${score}\n랭킹에 등록할 이름을 입력하세요:`);
-                    if (pName) {
-                        uploadScore(pName, score, stage).then(() => {
-                            showRankingBoard();
-                        });
-                    } else {
-                         showRankingBoard();
-                    }
+                gameState = "gameover";
+                const pName = prompt(`게임 오버! 당신의 점수: ${score}\n랭킹에 등록할 이름을 입력하세요:`);
+                if (pName) {
+                    window.uploadScore(pName, score, stage).then(() => { 
+                        window.showRankingBoard();  
+                    });
+                } else {
+                     window.showRankingBoard(); 
                 }
+            }
             } else if (gameState === "gameover") {
                 drawGameOver();
                 return;
@@ -1744,8 +1671,8 @@ function updateBoss() {
                     if (cycle % 3 === 0) fireSpiral(b, b.patternTimer * 0.25, 7.5, '#00fffa');
                     if (cycle % 45 === 0) fireAimedFan(b, 3, Math.PI/6, 9, '#fff');
                 } else if (b.bossType === 2) {
-                    if (cycle % 2 === 0) fireSpiral(b, b.patternTimer * 0.1, 4.5, '#ffea00');
-                    if (cycle % 15 === 0) fireRing(b, 24, 4, '#ff0000');
+                    if (cycle % 5 === 0) fireSpiral(b, b.patternTimer * 0.1, 4.5, '#ffea00');
+                    if (cycle % 15 === 0) fireRing(b, 18, 4, '#ff0000');
                 } else {
                     if (cycle < 150) { if (cycle % 4 === 0) fireSpiral(b, b.patternTimer * 0.15, 6, '#ff99ff'); }
                     else if (cycle < 300) { if (cycle % 30 === 0) fireRing(b, 18, 4.5, '#ff0000'); }
@@ -2585,3 +2512,49 @@ preloadAssets().then(() => {
     initGame();
     animate();
 });
+// 폭탄 사용 함수 (사운드 포함)
+function useBomb() {
+    if (player.bombs > 0) {
+        player.bombs--;
+
+        // 💣 폭탄 효과음 재생 (boom.ogg)
+        if (audioCtx) {
+            const soundRequest = new XMLHttpRequest();
+            soundRequest.open('GET', 'boom.ogg', true);
+            soundRequest.responseType = 'arraybuffer';
+            soundRequest.onload = function() {
+                audioCtx.decodeAudioData(soundRequest.response, function(buffer) {
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(audioCtx.destination);
+                    source.start(0);
+                });
+            };
+            soundRequest.send();
+        }
+
+        flashTimer = 20; 
+
+        // 1. 화면 내의 모든 적 총알 제거
+        enemyBullets = [];
+
+        // 2. 일반 적 즉사 처리
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            e.hp = 0;
+            killEnemy(e, i); 
+        }
+
+        // 3. 보스에게 데미지
+        bosses.forEach(b => {
+            if (b.state !== 'dying') {
+                b.hp -= 300; 
+                b.hitTimer = 10;
+                createParticles(b.x + b.width / 2, b.y + b.height / 2, 'orange');
+                if (b.hp <= 0) killBoss(b);
+            }
+        });
+
+        updateUI();
+    }
+}

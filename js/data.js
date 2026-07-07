@@ -15,7 +15,7 @@ const PARTS_INFO = {
     rim: { name: "림", color: "red", desc: "맞으면 광림이 됩니다", type: "normal" },
     asana: { name: "아사나", color: "green", desc: "볼-요가로 최대체력이 증가합니다", type: "buff" },
     Belita: { name: "벨리타", color: "#ff0000", desc: "최대체력이 높을 수록 강해집니다", type: "normal" },
-    kidian: { name: "키디언", color: "#333", desc: "전체 레벨이 높을 수록 강해집니다 (+0.05/Lv).", type: "normal" },
+    kidian: { name: "키디언", color: "#a020f0", desc: "전체 레벨이 높을 수록 강해집니다 (+0.05/Lv).", type: "normal" },
     naia: { name: "나이아", color: "royalblue", desc: "3개의 나이아가 지멋대로 쏩니다", type: "normal" },
     barie: { name: "바리에", color: "purple", desc: "옆 미니미의 공격을 복제합니다", type: "special" },
     gabia: { name: "빅우드", color: "#8B4513", desc: "보호막을 만들어줍니다", type: "defense" },
