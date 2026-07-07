@@ -2346,7 +2346,7 @@ function showUpgradeModal(isReroll = false) {
     }
     const btnBomb = document.getElementById('btn-bomb');
     if (btnBomb) {
-        if (player.bombs >= 3) {
+        if (player.bombs >= 5) {
             btnBomb.style.opacity = '0.5'; btnBomb.style.pointerEvents = 'none'; btnBomb.innerText = '💣 마리 최대치 도달';
         } else {
             btnBomb.style.opacity = '1'; btnBomb.style.pointerEvents = 'auto'; btnBomb.innerText = '💣 마리 획득';
