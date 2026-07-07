@@ -46,28 +46,28 @@ function playSound(type) {
         osc.type = 'square';
         osc.frequency.setValueAtTime(800, now);
         osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
-        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.setValueAtTime(0.10, now);
         gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
         osc.start(now); osc.stop(now + 0.1);
     } else if (type === 'explode') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(200, now);
         osc.frequency.exponentialRampToValueAtTime(20, now + 0.2);
-        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.setValueAtTime(0.2, now);
         gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
         osc.start(now); osc.stop(now + 0.2);
     } else if (type === 'damage') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(150, now);
         osc.frequency.linearRampToValueAtTime(50, now + 0.2);
-        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.setValueAtTime(0.4, now);
         gainNode.gain.linearRampToValueAtTime(0.001, now + 0.2);
         osc.start(now); osc.stop(now + 0.2);
     } else if (type === 'massive_explode') {
         osc.type = 'square';
         osc.frequency.setValueAtTime(100, now);
         osc.frequency.exponentialRampToValueAtTime(10, now + 1.5);
-        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.setValueAtTime(0.6, now);
         gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
         osc.start(now); osc.stop(now + 1.5);
     }
@@ -82,7 +82,7 @@ function playLobbyMusic() {
         try {
             lobbyAudio = new Audio('lobby.wav');
             lobbyAudio.loop = true;
-            lobbyAudio.volume = 0.2;
+            lobbyAudio.volume = 0.1;
         } catch(e) {}
     }
     if (lobbyAudio) {
@@ -99,7 +99,7 @@ function playBgmMusic() {
         try {
             bgmAudio = new Audio('bgm.wav');
             bgmAudio.loop = true;
-            bgmAudio.volume = 0.2;
+            bgmAudio.volume = 0.1;
         } catch(e) {}
     }
     if (bgmAudio) {
