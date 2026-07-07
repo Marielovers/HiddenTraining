@@ -1,6 +1,9 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = "high";
+
 const uiHpBar = document.getElementById('hp-bar');
 const uiHpText = document.getElementById('hp-text');
 const uiXpBar = document.getElementById('xp-bar');
