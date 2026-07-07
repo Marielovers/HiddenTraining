@@ -1,0 +1,25 @@
+/* js/data.js */
+const PARTS_INFO = {
+    tig: { name: "티그", color: "dimgray", desc: "두발씩 쏩니다. 렙업: 공속 증가", type: "normal" },
+    leets: { name: "리츠", color: "#a020f0", desc: "맞으면 강해집니다", type: "normal" },
+    Ifrit: { name: "이프리트", color: "red", desc: "불의 정령을 던집니다", type: "orbit" },
+    pira: { name: "피라", color: "#ffd700", desc: "사기를 쳐서 경험치를 추가로 획득합니다", type: "normal" },
+    diana: { name: "디아나", color: "#8b4513", desc: "입힌 데미지 만큼 회복합니다", type: "normal" },
+    elena: { name: "엘레나", color: "cyan", desc: "드론 만들어 적을 추적 공격합니다", type: "special" },
+    shasha: { name: "샤샤", color: "navy", desc: "부아아악", type: "normal" },
+    silphir: { name: "실피르", color: "lightskyblue", desc: "게임 진행 시간에 비례해서 강해집니다", type: "normal" },
+    lethe: { name: "레테", color: "gray", desc: "레이저 비이이이임", type: "laser" },
+    haley: { name: "헤일리(멀쩡)", color: "red", desc: "이속, 공속이 빨라집니다", type: "buff" },
+    amelia: { name: "아멜리아", color: "grey", desc: "모든 총알을 유도로 만듭니다. 엘프의 기술력은 세계 제일!!!", type: "buff" },
+    shady: { name: "셰이디", color: "grey", desc: "회색 총알 직선 발사. 회피 버프 ", type: "buff" },
+    rim: { name: "림", color: "red", desc: "맞으면 광림이 됩니다", type: "normal" },
+    asana: { name: "아사나", color: "green", desc: "볼-요가로 최대체력이 증가합니다", type: "buff" },
+    Belita: { name: "벨리타", color: "#ff0000", desc: "최대체력이 높을 수록 강해집니다", type: "normal" },
+    kidian: { name: "키디언", color: "#333", desc: "전체 레벨이 높을 수록 강해집니다 (+0.05/Lv).", type: "normal" },
+    naia: { name: "나이아", color: "royalblue", desc: "3개의 나이아가 지멋대로 쏩니다", type: "normal" },
+    barie: { name: "바리에", color: "purple", desc: "옆 미니미의 공격을 복제합니다", type: "special" },
+    gabia: { name: "빅우드", color: "#8B4513", desc: "보호막을 만들어줍니다", type: "defense" },
+    suro: { name: "슈로", color: "#800000", desc: "맞은 횟수마다 공격력이 오릅니다", type: "normal" },
+    erpin: { name: "에르핀(왕도)", color: "#FFD700", desc: "무작위로 산탄을 발사합니다. 10% 확률로 회복합니다. (Ner가 있으면 20% 확률로 마리와 놀러갑니다).", type: "special" },
+    ner: { name: "네르(빡침)", color: "#FF8C00", desc: "탄막 구체를 던집니다. 20% 확률로 배신합니다. 에르핀과 함께면 배신하지 않습니다", type: "special" }
+};
