@@ -11,7 +11,10 @@
         <div id="title-screen" class="overlay-screen">
             <div class="main-title">티그 리츠의<br>비행수련</div>
             <p style="color:#d2b48c; margin-top:-20px; margin-bottom:30px; font-size:14px;">터치 & 드래그로 이동 / 더블 탭으로 폭탄 사용</p>
-            <button class="start-btn" onclick="goToLoadout()">게임 시작</button>
+            
+            <button class="start-btn" onclick="goToLoadout('competitive')">경쟁 모드</button>
+            <button class="start-btn" style="margin-top: 15px; 0 0 10px " onclick="goToLoadout('free')">프리 모드</button>
+            
             <button class="start-btn" style="margin-top: 15px;" onclick="openDict()">상세 설명</button>
         </div>
 
@@ -23,12 +26,22 @@
                     <div class="slot-label">왼쪽 파츠</div>
                     <div id="preview-left-icon" class="slot-icon"></div>
                     <div id="preview-left-name" class="slot-name">선택</div>
+                    <div id="level-left-container" style="display:none; margin-top:15px; justify-content:center; align-items:center; gap: 15px; width: 100%;">
+                        <button onclick="changeLevel('left', -1, event)" style="padding: 5px 15px; font-size: 16px; font-weight:bold; border-radius: 5px; background: #333; color: white; border: 2px solid #777;">-</button>
+                        <span id="level-left-display" style="color: white; font-weight: bold; font-size: 16px;">Lv.1</span>
+                        <button onclick="changeLevel('left', 1, event)" style="padding: 5px 15px; font-size: 16px; font-weight:bold; border-radius: 5px; background: #333; color: white; border: 2px solid #777;">+</button>
+                    </div>
                 </div>
         
                 <div id="slot-right" class="slot" onclick="setSelectionTarget('right')">
                     <div class="slot-label">오른쪽 파츠</div>
                     <div id="preview-right-icon" class="slot-icon"></div>
                     <div id="preview-right-name" class="slot-name">대기 중...</div>
+                    <div id="level-right-container" style="display:none; margin-top:15px; justify-content:center; align-items:center; gap: 15px; width: 100%;">
+                        <button onclick="changeLevel('right', -1, event)" style="padding: 5px 15px; font-size: 16px; font-weight:bold; border-radius: 5px; background: #333; color: white; border: 2px solid #777;">-</button>
+                        <span id="level-right-display" style="color: white; font-weight: bold; font-size: 16px;">Lv.1</span>
+                        <button onclick="changeLevel('right', 1, event)" style="padding: 5px 15px; font-size: 16px; font-weight:bold; border-radius: 5px; background: #333; color: white; border: 2px solid #777;">+</button>
+                    </div>
                 </div>
             </div>
 
@@ -101,6 +114,12 @@
             </div>
             <button class="start-btn" style="margin-top: 2vh; padding: 1.5vh 5vw; font-size: 3vmin;" onclick="closeDict()">닫기</button>
         </div>
+
+        <div id="game-over-screen" class="overlay-screen" style="display:none; flex-direction:column; justify-content:center; align-items:center; background:rgba(0,0,0,0.8); z-index: 9999;">
+            <h1 style="color:red; font-size:40px; margin-bottom:20px; text-shadow:2px 2px black;">게임 오버</h1>
+            <h2 id="final-score-text" style="color:white; margin-bottom:30px;"></h2>
+            <button class="start-btn" onclick="resetToTitle()">타이틀로 돌아가기</button>
+        </div>
     
         <canvas id="gameCanvas" width="450" height="700"></canvas>
     </div>
@@ -147,7 +166,8 @@
                 document.getElementById('game-container').appendChild(board);
             }
             board.style.display = 'flex';
-            board.innerHTML = '<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">글로벌 랭킹</h2><div style="color:#d2b48c; margin-bottom:20px;">데이터를 불러오는 중...</div>';
+            
+            board.innerHTML = `<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">🏆 랭킹 게시판</h2><div style="color:#d2b48c; margin-bottom:20px;">데이터를 불러오는 중...</div>`;
             
             try {
                 const q = query(collection(db, "dualcore_ranking"), orderBy("score", "desc"), limit(100));
@@ -158,7 +178,14 @@
                     list.push(doc.data());
                 });
                 
-                let html = '<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">글로벌 랭킹</h2>';
+                let html = `<h2 style="color:#ffd700; margin-bottom:10px; text-shadow:2px 2px #5c3a21;">🏆 랭킹 게시판</h2>`;
+                
+                html += `<div style="display:flex; gap:10px; justify-content:center; margin-bottom:20px;">
+                            <button class="start-btn" style="padding: 10px 20px; font-size: 14px;" onclick="document.getElementById('live-ranking-view').style.display='block'; document.getElementById('legacy-ranking-view').style.display='none';">현재 랭킹</button>
+                            <button class="start-btn" style="padding: 10px 20px; font-size: 14px; border-color:#a9a9a9; box-shadow:0 0 10px #a9a9a9;" onclick="document.getElementById('live-ranking-view').style.display='none'; document.getElementById('legacy-ranking-view').style.display='block';">명예의 전당</button>
+                         </div>`;
+
+                html += `<div id="live-ranking-view" style="display:block; width:100%;">`;
                 html += '<div style="width:100%; max-height:40vh; overflow-y:auto; margin-bottom:30px;">';
                 html += '<table style="width:100%; border-collapse:collapse; text-align:center; font-size:16px; color:white;">';
                 html += '<tr style="border-bottom:2px solid #d2b48c; color:#ffd700;"><th>순위</th><th>이름</th><th>조합</th><th>점수</th><th>스테이지</th></tr>';
@@ -181,15 +208,128 @@
                                  </tr>`;
                     });
                 }
-                html += '</table></div>';
+                html += '</table></div></div>';
                 
-                html += '<button class="start-btn" onclick="document.getElementById(\'ranking-overlay\').style.display=\'none\'">닫기</button>';
+                html += `<div id="legacy-ranking-view" style="display:none; width:100%;">`;
+                html += '<div style="width:100%; max-height:40vh; overflow-y:auto; margin-bottom:30px;">';
+                html += '<table style="width:100%; border-collapse:collapse; text-align:center; font-size:14px; color:#ccc;">';
+                html += '<tr style="border-bottom:2px solid #777; color:#a9a9a9;"><th>순위</th><th>이름</th><th>조합</th><th>점수</th><th>스테이지</th></tr>';
+
+                const legacyData = [
+                    [1, "파티마", "슈로 & 셰이디", 705400, 15],
+                    [2, "항문처형인", "빅우드 & 디아나", 529600, 11],
+                    [3, "크악교주이새끼가가", "빅우드 & 엘레나", 314800, 10],
+                    [4, "비비꼬리 빨고 싶다", "헤일리(멀쩡) & 셰이디", 308400, 10],
+                    [5, "망겜", "빅우드 & 셰이디", 263000, 12],
+                    [6, "극한의 비비 사랑꾼", "슈로 & 셰이디", 147600, 8],
+                    [7, "!!빅우드를바라봐라!!", "빅우드 & 림", 137500, 7],
+                    [8, "사멜이는아가", "슈로 & 셰이디", 137200, 8],
+                    [9, "아바오지켜", "에르핀(왕도) & 네르(빡침)", 117300, 7],
+                    [10, "리스티햄부기", "에르핀(왕도) & 네르(빡침)", 117000, 7],
+                    [11, "퍼펙트아리수2", "에르핀(왕도) & 네르(빡침)", 112600, 6],
+                    [12, "ㄷㄷ", "셰이디 & 실피르", 111100, 7],
+                    [13, "준준싸시보", "에르핀(왕도) & 네르(빡침)", 108500, 6],
+                    [14, "나이아흠뻑쇼", "에르핀(왕도) & 네르(빡침)", 106600, 6],
+                    [15, "도루쉔", "에르핀(왕도) & 네르(빡침)", 102700, 6],
+                    [16, "국산독수리", "에르핀(왕도) & 네르(빡침)", 97400, 6],
+                    [17, "퍼펙트아리수", "에르핀(왕도) & 네르(빡침)", 95900, 6],
+                    [18, "ㅁ", "엘레나 & 에르핀(왕도)", 95500, 6],
+                    [19, "리뉴아흰스", "빅우드 & 림", 88200, 6],
+                    [20, "건전한엘프명15T", "에르핀(왕도) & 네르(빡침)", 86100, 6],
+                    [21, "롤렛", "바리에 & 엘레나", 83700, 6],
+                    [22, "크아악교주이새끼가가", "바리에 & 엘레나", 82300, 6],
+                    [23, "ㅇㅇ", "엘레나 & 바리에", 81900, 6],
+                    [24, "얼탱", "바리에 & 엘레나", 81500, 6],
+                    [25, "실라야캐요", "이프리트 & 디아나", 80300, 6],
+                    [26, "복실이", "에르핀(왕도) & 네르(빡침)", 78800, 5],
+                    [27, "마요남편", "에르핀(왕도) & 바리에", 75100, 5],
+                    [28, "얼탱", "바리에 & 엘레나", 74300, 5],
+                    [29, "메루", "바리에 & 엘레나", 73600, 6],
+                    [30, "벨라", "에르핀(왕도) & 네르(빡침)", 70300, 6],
+                    [31, "pb1st", "에르핀(왕도) & 네르(빡침)", 70000, 5],
+                    [32, "씨발", "에르핀(왕도) & 벨리타", 65600, 5],
+                    [33, "곰드루", "에르핀(왕도) & 네르(빡침)", 65300, 5],
+                    [34, "도루쉔", "엘레나 & 바리에", 63800, 5],
+                    [35, "아오바2", "림 & 빅우드", 63600, 5],
+                    [36, "ㄴㄴㄴ", "레테 & 슈로", 63600, 6],
+                    [37, "롤렛", "네르(빡침) & 에르핀(왕도)", 63300, 5],
+                    [38, "shc67890", "바리에 & 엘레나", 61800, 5],
+                    [39, "비비 남편", "바리에 & 엘레나", 60500, 5],
+                    [40, "q", "에르핀(왕도) & 네르(빡침)", 60400, 5],
+                    [41, "알로라이", "디아나 & 엘레나", 58700, 4],
+                    [42, "ㅁㅁ", "바리에 & 엘레나", 58300, 5],
+                    [43, "존나어렵네", "디아나 & 샤샤", 58100, 5],
+                    [44, "edo", "바리에 & 에르핀(왕도)", 58100, 4],
+                    [45, "뒤도는걸 잘하는 교주", "엘레나 & 바리에", 57500, 5],
+                    [46, "스핔", "엘레나 & 디아나", 55400, 4],
+        			[47, "고블린무녀", "피라 & 엘레나", 54500, 5],
+        			[48, "교준니", "실피르 & 나이아", 52100, 5],
+        			[49, "매루", "에르핀(왕도) & 네르(빡침)", 51200, 5],
+        			[50, "에으", "아멜리아 & 샤샤", 51000, 4],
+        			[51, "마까", "티그 & 바리에", 50900, 5],
+        			[52, "메루", "엘레나 & 바리에", 50900, 5],
+        			[53, "존나어려워", "나이아 & 실피르", 50400, 5],
+        			[54, "pb1st", "엘레나 & 바리에", 49800, 5],
+        			[55, "얼탱", "레테 & 티그", 49700, 5],
+        			[56, "개똥겜", "샤샤 & 아멜리아", 49600, 5],
+        			[57, "ㅇㅇ", "샤샤 & 엘레나", 49200, 4],
+        			[58, "비비", "이프리트 & 바리에", 49000, 5],
+        			[59, "아오바", "디아나 & 슈로", 48400, 5],
+        			[60, "크아악교주이새끼가가", "엘레나 & 샤샤", 48100, 4],
+        			[61, "섹스", "레테 & 티그", 47700, 5],
+        			[62, "ㅇㅇ", "아멜리아 & 에르핀(왕도)", 46300, 4],
+        			[63, "제람2", "에르핀(왕도) & 네르(빡침)", 46300, 5],
+        			[64, "비비 남편❤️", "엘레나 & 바리에", 45500, 4],
+        			[65, "백수묵시록", "에르핀(왕도) & 아멜리아", 44700, 4],
+        			[66, "육칠", "네르(빡침) & 에르핀(왕도)", 44200, 5],
+        			[67, "grf", "슈로 & 에르핀(왕도)", 43700, 4],
+        			[68, "얼탱", "레테 & 바리에", 43700, 5],
+        			[69, "붕어술사", "림 & 셰이디", 43700, 4],
+        			[70, "pb1st", "아멜리아 & 샤샤", 43600, 5],
+        			[71, "Shikatmo", "나이아 & 레테", 43400, 5],
+        			[72, "빕", "슈로 & 셰이디", 41700, 5],
+        			[73, "reㅇㄹ", "키디언 & 빅우드", 41500, 4],
+        			[74, ".", "바리에 & 에르핀(왕도)", 41200, 4],
+        			[75, "메루", "에르핀(왕도) & 네르(빡침)", 40600, 4],
+        			[76, "비", "엘레나 & 바리에", 40100, 4],
+        			[77, "와", "셰이디 & 슈로", 40100, 4],
+        			[78, "비비남편❤️", "엘레나 & 바리에", 38100, 4],
+        			[79, "망함", "아멜리아 & 나이아", 38100, 4],
+        			[80, "캐시", "엘레나 & 바리에", 37000, 4],
+        			[81, "빠이몬", "에르핀(왕도) & 네르(빡침)", 36900, 4],
+        			[82, "로네", "실피르 & 샤샤", 36800, 4],
+        			[83, "로네", "에르핀(왕도) & 나이아", 35900, 4],
+        			[84, "에슈르는빈유가아니다", "티그 & 엘레나", 35700, 4],
+        			[85, "ㅅㅂ", "림 & 레테", 35600, 4],
+        			[86, "ㅡ", "슈로 & 디아나", 34900, 4],
+        			[87, "ㅇㅇ", "엘레나 & 디아나", 34700, 3],
+        			[88, "우로스", "티그 & 리츠", 33200, 4],
+        			[89, "도루쉔", "엘레나 & 바리에", 32500, 3],
+        			[90, ".", "실피르 & 아멜리아", 30800, 3],
+        			[91, "Pb1st", "티그 & 셰이디", 29200, 3],
+        			[92, "비밀수련", "슈로 & 샤샤", 28300, 3],
+        			[93, "퍄퍄", "에르핀(왕도) & 빅우드", 27200, 3],
+        			[94, "로네", "레테 & 디아나", 26900, 3],
+        			[95, "미호2", "디아나 & 레테", 26700, 3],
+        			[96, "섹스킹", "피라 & 실피르", 25800, 3],
+        			[97, "shc67890", "바리에 & 엘레나", 25200, 3],
+        			[98, "?", "디아나 & 림", 24000, 3],
+        			[99, "왔다옴왔다감", "없음", 23700, 3],
+        			[100, "섹 ㅖ수", "티그 & 리츠", 23000, 3]
+                ];
+
+                legacyData.forEach(item => {
+                    html += `<tr style="border-bottom:1px solid #444;"><td style="padding:8px;">${item[0]}</td><td>${item[1]}</td><td style="font-size:12px; color:#88cc44;">${item[2]}</td><td style="color:#ddbb55;">${item[3]}</td><td>${item[4]}</td></tr>`;
+                });
+
+                html += '</table></div></div>';
+
                 board.innerHTML = html;
                 
                 let restartBtn = document.createElement('button');
                 restartBtn.className = 'start-btn';
                 restartBtn.style.marginTop = '15px';
-                restartBtn.innerText = '다시하기';
+                restartBtn.innerText = '타이틀로';
                 restartBtn.onclick = () => {
                     document.getElementById('ranking-overlay').style.display = 'none';
                     if (window.resetToTitle) window.resetToTitle();
@@ -197,12 +337,12 @@
                 board.appendChild(restartBtn);
                 
             } catch (e) {
-                board.innerHTML = '<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">글로벌 랭킹</h2><div style="color:#dc143c; margin-bottom:20px;">데이터 로드 실패</div><button class="start-btn" onclick="document.getElementById(\'ranking-overlay\').style.display=\'none\'">닫기</button>';
+                board.innerHTML = `<h2 style="color:#ffd700; margin-bottom:20px; text-shadow:2px 2px #5c3a21;">🏆 랭킹 게시판</h2><div style="color:#dc143c; margin-bottom:20px;">데이터 로드 실패</div>`;
                 
                 let restartBtn = document.createElement('button');
                 restartBtn.className = 'start-btn';
                 restartBtn.style.marginTop = '15px';
-                restartBtn.innerText = '다시하기';
+                restartBtn.innerText = '타이틀로';
                 restartBtn.onclick = () => {
                     document.getElementById('ranking-overlay').style.display = 'none';
                     if (window.resetToTitle) window.resetToTitle();

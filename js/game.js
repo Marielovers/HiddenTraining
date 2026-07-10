@@ -32,6 +32,10 @@ let bgmAudio = null;
 let lobbyAudio = null;
 let savedGameState = "playing";
 
+let gameMode = 'competitive'; 
+let loadoutLevelLeft = 1;
+let loadoutLevelRight = 1;
+
 function initAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -194,6 +198,7 @@ let flashTimer = 0;
 let bossCooldown = 0; 
 let bossMaxHp = 100;
 let stage = 1;
+let stageTimeLeft = 3600
 let fadeAlpha = 0;
 let displayStageTextTimer = 0;
 let displayClearTextTimer = 0;
@@ -294,19 +299,18 @@ function initGame() {
 }
 
 function createRankingButton() {
-    const existingBtn = document.getElementById('ranking-view-btn');
-    if (existingBtn) return;
-    const rankBtn = document.createElement('button');
-    rankBtn.id = 'ranking-view-btn';
-    rankBtn.className = 'start-btn';
-    rankBtn.style.marginTop = '15px';
-    rankBtn.innerText = '랭킹 보기';
-    rankBtn.onclick = () => window.showRankingBoard();
-    titleScreen.appendChild(rankBtn);
+    if (document.getElementById('ranking-view-btn-competitive')) return;
+
+    const rankBtnComp = document.createElement('button');
+    rankBtnComp.id = 'ranking-view-btn-competitive';
+    rankBtnComp.className = 'start-btn';
+    rankBtnComp.style.marginTop = '15px';
+    rankBtnComp.innerText = '랭킹 게시판';
+    rankBtnComp.onclick = () => window.showRankingBoard();
+    titleScreen.appendChild(rankBtnComp);
 }
 
-
-function resetToTitle() {
+window.resetToTitle = function() {
     stopAllMusic();
     playLobbyMusic();
     gameState = "title";
@@ -314,18 +318,34 @@ function resetToTitle() {
     loadoutScreen.style.display = "none";
     titleScreen.style.display = "flex";
     
+    const goScreen = document.getElementById('game-over-screen');
+    if (goScreen) goScreen.style.display = "none";
+    
+    const rankOverlay = document.getElementById('ranking-overlay');
+    if (rankOverlay) rankOverlay.style.display = "none";
+    
     player.leftPart = { id: null, level: 1 };
     player.rightPart = { id: null, level: 1 };
     selectedLoadoutLeft = null;
     selectedLoadoutRight = null;
     
+    uiBossUi.style.display = 'none';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 
 let currentSelectionTarget = 'left';
 
-function goToLoadout() {
+function goToLoadout(mode = 'competitive') {
+    gameMode = mode;
+    loadoutLevelLeft = 1;
+    loadoutLevelRight = 1;
+    
+    if (document.getElementById('level-left-display')) {
+        document.getElementById('level-left-display').innerText = 'Lv.1';
+        document.getElementById('level-right-display').innerText = 'Lv.1';
+    }
+
     initAudio();
     playLobbyMusic();
     gameState = "loadout";
@@ -334,8 +354,25 @@ function goToLoadout() {
     selectedLoadoutLeft = null;
     selectedLoadoutRight = null;
     setSelectionTarget('left'); 
+    
+    if (document.getElementById('level-left-container')) {
+        document.getElementById('level-left-container').style.display = mode === 'free' ? 'flex' : 'none';
+        document.getElementById('level-right-container').style.display = mode === 'free' ? 'flex' : 'none';
+    }
+
     renderLoadoutUI();
 }
+
+window.changeLevel = function(side, delta, event) {
+    event.stopPropagation();
+    if (side === 'left') {
+        loadoutLevelLeft = Math.max(1, Math.min(7, loadoutLevelLeft + delta));
+        document.getElementById('level-left-display').innerText = 'Lv.' + loadoutLevelLeft;
+    } else {
+        loadoutLevelRight = Math.max(1, Math.min(7, loadoutLevelRight + delta));
+        document.getElementById('level-right-display').innerText = 'Lv.' + loadoutLevelRight;
+    }
+};
 
 function setSelectionTarget(side) {
     currentSelectionTarget = side;
@@ -402,7 +439,8 @@ function updateSingleSlot(side, key) {
     const slot = document.getElementById(`slot-${side}`);
     const iconDiv = document.getElementById(`preview-${side}-icon`);
     const nameDiv = document.getElementById(`preview-${side}-name`);
-
+    iconDiv.style.width = '16vmin';
+    iconDiv.style.height = '16vmin';
     if (key) {
         let info = PARTS_INFO[key];
         slot.classList.add('filled');
@@ -441,8 +479,8 @@ function startGame() {
     loadoutScreen.style.display = "none";
     gameUI.style.display = "block";
 
-    player.leftPart = { id: selectedLoadoutLeft, level: 1 };
-    player.rightPart = { id: selectedLoadoutRight, level: 1 };
+    player.leftPart = { id: selectedLoadoutLeft, level: gameMode === 'free' ? loadoutLevelLeft : 1 };
+    player.rightPart = { id: selectedLoadoutRight, level: gameMode === 'free' ? loadoutLevelRight : 1 };
     
     score = 0; 
     frame = 0; 
@@ -494,6 +532,7 @@ function startGame() {
     totalBossMaxHp = 0;
     bossCooldown = 1800; 
     bossMaxHp = 100;
+    stageTimeLeft = 3600;
     
     player.x = canvas.width / 2 - player.width / 2;
     player.y = canvas.height + 50;
@@ -598,7 +637,7 @@ function confirmSelection() {
         let currentLevel = 0;
         if(player.leftPart.id === partId) currentLevel = player.leftPart.level;
         else if(player.rightPart.id === partId) currentLevel = player.rightPart.level;
-        if (!(isOwned && currentLevel >= 5)) { selectUpgradePart(partId); }
+        if (!(isOwned && currentLevel >= 7)) { selectUpgradePart(partId); }
     } else if (upgradeSelectedIndex === 3) { selectFixedUpgrade('heal'); } 
     else if (upgradeSelectedIndex === 4 && player.bombs < 5) { selectFixedUpgrade('bomb'); }
     else if (upgradeSelectedIndex === 5 && player.rerolls > 0) { rerollUpgrade(); }
@@ -695,6 +734,7 @@ let shipH = shipW * ratio;
                     totalBossMaxHp = 0;
                     bossCooldown = 1800;
                     bossMaxHp = 100 + (stage - 1) * 50;
+                    stageTimeLeft = 3600;
                 }
             }
         }
@@ -713,6 +753,13 @@ let shipH = shipW * ratio;
         }
 
         if (gameState === "playing" && player.hp > 0) {
+            let isClearSequencePending = bosses.length > 0 && bosses.every(b => b.state === 'dying');
+            if (!isClearSequencePending) {
+                stageTimeLeft--;
+                if (stageTimeLeft <= 0) {
+                    player.hp = 0; // 시간 초과 시 즉사
+                }
+            }
             if (frame % 2 === 0) {
                 particles.push({
                     x: player.x + player.width/2 + (Math.random()-0.5)*10,
@@ -789,6 +836,7 @@ let shipH = shipW * ratio;
 
             if (player.hp <= 0 && gameState === "playing") {
                 gameState = "gameover_sequence";
+                uiBossUi.style.display = 'none';
                 player.deathTimer = 180;
                 playSound('massive_explode');
                 stopAllMusic();
@@ -809,16 +857,21 @@ let shipH = shipW * ratio;
                      playSound('explode');
                 }
                 if (player.deathTimer <= 0) {
-                gameState = "gameover";
-                const pName = prompt(`게임 오버! 당신의 점수: ${score}\n랭킹에 등록할 이름을 입력하세요:`);
-                if (pName) {
-    window.uploadScore(pName, score, stage, player.leftPart.id, player.rightPart.id).then(() => { 
-        window.showRankingBoard();  
-    });
-} else {
-    window.showRankingBoard(); 
-}
-            }
+                    gameState = "gameover";
+                    if (gameMode === 'competitive') {
+                        const pName = prompt(`게임 오버! 당신의 점수: ${score}\n랭킹에 등록할 이름을 입력하세요:`);
+                        if (pName) {
+                            window.uploadScore(pName, score, stage, player.leftPart.id, player.rightPart.id).then(() => { 
+                                window.showRankingBoard();  
+                            });
+                        } else {
+                            window.showRankingBoard(); 
+                        }
+                    } else {
+                        document.getElementById('final-score-text').innerText = `최종 점수: ${score}`;
+                        document.getElementById('game-over-screen').style.display = 'flex';
+                    }
+                }
             } else if (gameState === "gameover") {
                 drawGameOver();
                 return;
@@ -872,6 +925,18 @@ let shipH = shipW * ratio;
             if (fadeAlpha > 0) {
                 ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            if (gameState === "playing" || gameState === "stage_clear_sequence" || gameState === "stage_start_sequence") {
+                ctx.save();
+                ctx.fillStyle = stageTimeLeft <= 600 ? "#ff4444" : "white";
+                ctx.font = "bold 20px Arial";
+                ctx.textAlign = "center";
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 4;
+                let sec = Math.ceil(stageTimeLeft / 60);
+                ctx.fillText(`남은 시간: ${sec}초`, canvas.width / 2, 40);
+                ctx.restore();
             }
 
             frame++;
@@ -1026,7 +1091,7 @@ function processPartAction(part, side) {
                 if (player.leftPart.id === 'leets') damageMultiplier += 0.20 + (player.leftPart.level - 1) * 0.2;
                 if (player.rightPart.id === 'leets') damageMultiplier += 0.20 + (player.rightPart.level - 1) * 0.2;
                 if (isBerserk) damageAdd = 1 ;
-                let damage = (2 + (runPart.level - 1) * 0.5) * damageMultiplier*getSilphirMultiplier() + damageAdd; 
+                let damage = (4 + (runPart.level - 1) * 1.0) * damageMultiplier*getSilphirMultiplier() + damageAdd; 
 
                 const checkLaserHit = (target, lx, ly, angle, width, range) => {
                     let tx = target.x + target.width/2;
@@ -1097,7 +1162,7 @@ function processPartAction(part, side) {
             baseCd = Math.floor(6 / (1 + (runPart.level - 1) * 0.25)); 
             let x1 = side === 'left' ? bx - 5 : bx - 5; 
             let x2 = side === 'left' ? bx + 5 : bx + 5;
-            spawnBullet(x1, player.y, 0, -22, 6, 6, 'dimgray', 0.5); spawnBullet(x2, player.y, 0, -22, 6, 6, 'dimgray', 0.5); 
+            spawnBullet(x1, player.y, 0, -22, 6, 6, 'dimgray', 1.0); spawnBullet(x2, player.y, 0, -22, 6, 6, 'dimgray', 1.0); 
         } else if (runPart.id === 'leets') {
             baseCd = 12; spawnBullet(bx, player.y, 0, -22, 8, 8, '#a020f0', 1, 'circle');
         } else if (runPart.id === 'Ifrit') {
@@ -1105,7 +1170,7 @@ function processPartAction(part, side) {
             let myOrbCount = player.IfritOrbs.filter(orb => orb.source === currentSource).length;
             let maxOrbs = 5 + (runPart.level * 2);
             if (myOrbCount < maxOrbs) { 
-                let baseDmg = 5 * (1 + (runPart.level - 1) * 0.25);
+                let baseDmg = 15 * (1 + (runPart.level - 1) * 0.25);
                 let damageMultiplier = 1.0;
                 let damageAdd = 0;
                 if (player.leftPart.id === 'leets') damageMultiplier += 0.20 + (player.leftPart.level - 1) * 0.2;
@@ -1125,13 +1190,13 @@ function processPartAction(part, side) {
         else if (runPart.id === 'haley') { spawnBullet(bx, player.y, 0, -22, 8, 8, 'green', 1, 'circle'); baseCd = 12; }
         else if (runPart.id === 'gabia') { spawnBullet(bx, player.y, 0, -20, 8, 8, '#8B4513', 1, 'circle'); baseCd = 12; }
         else if (runPart.id === 'amelia') { spawnBullet(bx, player.y, 0, -20, 8, 8, 'grey', 1, 'circle'); baseCd = 12; }
-        else if (runPart.id === 'silphir') { spawnBullet(bx, player.y, 0, -20, 8, 8, 'blue', 1, 'circle'); baseCd = 12; }
+        else if (runPart.id === 'silphir') { spawnBullet(bx, player.y, 0, -20, 8, 8, 'blue', 2, 'circle'); baseCd = 12; }
         else if (runPart.id === 'barie') { 
-            spawnBullet(bx, player.y, 0, -20, 6, 8, 'purple', 1, 'circle'); baseCd = 12; 
+            spawnBullet(bx, player.y, 0, -20, 6, 8, 'purple', 2, 'circle'); baseCd = 12; 
         }
         else if (runPart.id === 'shasha') {
             let bulletCount = 5 + (runPart.level - 1) * 1; 
-            let dmg = 0.5; 
+            let dmg = 1.0; 
             let maxSpread = Math.PI / 4; 
             let startAngle = -Math.PI / 2 - maxSpread / 2;
             let totalArc = maxSpread;
@@ -1147,13 +1212,13 @@ function processPartAction(part, side) {
             let spacing = 12; 
             let startX = bx - ((count - 1) * spacing) / 2; 
             for (let i = 0; i < count; i++) {
-                spawnBullet(startX + (i * spacing), player.y, 0, -22, 5, 10, 'red', 0.5);
+                spawnBullet(startX + (i * spacing), player.y, 0, -22, 5, 10, 'red', 1.0);
             }
             baseCd = 12; 
         }
         else if (runPart.id === 'Belita') {
             let hpRatio = player.hp / 100;
-            let baseDmg = Math.max(1, 3 * (hpRatio * hpRatio) * (1+(runPart.level - 1) * 0.25));    
+            let baseDmg = Math.max(2, 6 * (hpRatio * hpRatio) * (1+(runPart.level - 1) * 0.25));    
             let bulletSize = Math.max(3,  8 * hpRatio* (1+(runPart.level - 1) * 0.25));
             spawnBullet(bx, player.y, 0, -18, bulletSize, bulletSize, 'red', baseDmg, 'circle');  
             baseCd = 12; 
@@ -1164,7 +1229,7 @@ function processPartAction(part, side) {
             if (partner.id === 'pira') {
                 piraBonus = 1 + partner.level*0.3; 
             }
-            let finalBaseDmg = Math.max(0.2, levelBonus) * piraBonus ; 
+            let finalBaseDmg = Math.max(0.4, levelBonus * 2) * piraBonus ; 
 
             let startX = bx - 12; 
             for (let i = 0; i < 3; i++) {
@@ -1180,7 +1245,7 @@ function processPartAction(part, side) {
         }
         else if (runPart.id === 'suro') {
             let hitBonus = Math.min(1.0, player.totalHitCount * 0.01);
-            let baseDmg = 0.5 * (1 + (runPart.level - 1) * 0.25);
+            let baseDmg = 1.0 * (1 + (runPart.level - 1) * 0.25);
             let finalDmg = baseDmg * (1 + hitBonus);
             let speedY = -20; 
             spawnBullet(bx, player.y, 0, speedY, 6, 10, 'black', finalDmg);
@@ -1214,7 +1279,7 @@ function processPartAction(part, side) {
                     let speed = 10 + Math.random() * 10;
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
-                    spawnBullet(bx, player.y, vx, vy, 5, 5, '#FFD700', 0.4, 'circle');
+                    spawnBullet(bx, player.y, vx, vy, 5, 5, '#FFD700', 0.8, 'circle');
                 }
             }
             baseCd = 20; 
@@ -1236,12 +1301,16 @@ function processPartAction(part, side) {
             baseCd = 60; 
         }
 
+        let originalCd = baseCd;
         let speedMult = 1 + (haleyLevel) * 0.1;
-        if (isOffmask && baseCd > 0) {
+        if (isOffmask && originalCd > 0) {
             speedMult *= 2;
         }
-        baseCd = Math.floor(baseCd / speedMult);
-        if (baseCd > 0) player[cdKey] = baseCd;
+        
+        if (originalCd > 0) {
+            let finalCd = Math.floor(originalCd / speedMult);
+            player[cdKey] = Math.max(1, finalCd);
+        }
     }
 }
 
@@ -1344,7 +1413,7 @@ function updateElenaDrones() {
 
                 if (target && drone.cooldown <= 0) {
                     if (Math.abs(drone.x - destX) < 20) {
-                        spawnBullet(drone.x, drone.y, 0, -25, 4, 10, bulletColor, 0.3); 
+                        spawnBullet(drone.x, drone.y, 0, -25, 4, 10, bulletColor, 0.6); 
                         let droneCd = 10;
                         let speedMult = 1;
                         if (haleyLevel > 0 && !player.invincible) {
@@ -1431,7 +1500,7 @@ function updateNaiaDrones() {
 
             if (drone.cooldown > 0) drone.cooldown--;
             else {
-                let finalDmg = 0.5 + (damageLevel - 1) * 0.125; 
+                let finalDmg = 1.0 + (damageLevel - 1) * 0.25; 
                 spawnBullet(drone.x, drone.y, 0, -20, 4, 12, bulletColor, finalDmg, 'rect'); 
                 drone.cooldown = finalCooldown; 
             }
@@ -1623,9 +1692,8 @@ function spawnBoss() {
     enemies.forEach(e => spawnExpOrb(e.x, e.y));
     enemies = [];
     
-    let numBosses = 1;
-    if (stage >= 10) numBosses = 3;
-    else if (stage >= 5) numBosses = 2;
+    let numBosses = stage >= 15 ? 2 : 1;
+    let hpMultiplier = 1 + Math.floor((stage - 1) / 5);
 
     let availableTypes = [1, 2, 3];
     availableTypes.sort(() => Math.random() - 0.5);
@@ -1634,8 +1702,8 @@ function spawnBoss() {
     bosses = [];
 
     for (let i = 0; i < numBosses; i++) {
-        let bType = availableTypes[i];
-        let calculatedHp = bossMaxHp;
+        let bType = availableTypes[i % availableTypes.length];
+        let calculatedHp = bossMaxHp * hpMultiplier;
         let bW = 100, bH = 100;
         let bColor = '#ff00ff';
         let bSpeed = 3;
@@ -2112,7 +2180,7 @@ function drawDyingPlayer(deathTimer) {
 function updateEnemies() {
     if (gameState !== "playing") return;
 
-    let spawnRate = Math.max(10, 60 - (player.level * 3) - (stage * 2)); 
+    let spawnRate = Math.max(10, 60 - (player.level * 3) - (stage * 1)); 
     if (frame >= nextSpawnFrame) { spawnEnemy(); nextSpawnFrame = frame + spawnRate; }
     
     for (let i = enemies.length - 1; i >= 0; i--) {
@@ -2246,9 +2314,19 @@ function updateExpOrbs() {
 }
 
 function gainExp(amount) {
-    let bonusMult = 1.0; if (player.leftPart.id === 'pira' && player.rightPart.id !== 'kidian') bonusMult += (player.leftPart.level * 0.2); if (player.rightPart.id === 'pira' && player.leftPart.id !== 'kidian') bonusMult += (player.rightPart.level * 0.2);
-    let finalExp = amount * bonusMult; player.currentExp += finalExp;
-    if (player.currentExp >= player.maxExp) { player.currentExp -= player.maxExp; player.maxExp += 10; player.level++; showUpgradeModal(); }
+    let bonusMult = 1.0; 
+    if (player.leftPart.id === 'pira' && player.rightPart.id !== 'kidian') bonusMult += (player.leftPart.level * 0.4); 
+    if (player.rightPart.id === 'pira' && player.leftPart.id !== 'kidian') bonusMult += (player.rightPart.level * 0.4);
+    
+    let finalExp = amount * bonusMult; 
+    player.currentExp += finalExp;
+    
+    if (player.currentExp >= player.maxExp) { 
+        player.currentExp -= player.maxExp; 
+        player.maxExp += 10; 
+        player.level++; 
+        showUpgradeModal();
+    }
     updateUI();
 }
 
@@ -2271,7 +2349,8 @@ function updatePlayerStats() {
     if (player.rightPart.id === 'suro') {
         hpMultiplier -= (player.rightPart.level * 0.1);
     }
-    let newMaxHp = Math.floor(100 * hpMultiplier);
+    
+    let newMaxHp = Math.floor(100 * Math.max(0.1, hpMultiplier));
     player.maxHp = newMaxHp;
     player.hp = Math.floor(newMaxHp * currentHpRatio);
 
@@ -2358,7 +2437,7 @@ function showUpgradeModal(isReroll = false) {
         if(player.leftPart.id === key) currentLevel = player.leftPart.level;
         else if(player.rightPart.id === key) currentLevel = player.rightPart.level;
         
-        let isMax = (isOwned && currentLevel >= 5);
+        let isMax = (isOwned && currentLevel >= 7);
         if(isMax) div.classList.add('disabled');
         
         div.innerHTML = `${isMax ? '<div class="max-badge">MAX</div>' : ''}<div class="card-icon"><img src="minimi/${info.name}.png" style="width:100%; height:100%; object-fit:contain;"></div><div class="card-name" style="color:${info.color}">${info.name}</div><div class="card-desc">${info.desc}</div><div class="card-level">${isOwned ? 'Lv.' + currentLevel + (isMax ? ' (MAX)' : ' -> ' + (currentLevel+1)) : 'New!'}</div>`;
@@ -2398,8 +2477,8 @@ function selectFixedUpgrade(type) {
 }
 
 function selectUpgradePart(partId) {
-    if (player.leftPart.id === partId) { if(player.leftPart.level < 5) { player.leftPart.level++; finishUpgrade(); } } 
-    else if (player.rightPart.id === partId) { if(player.rightPart.level < 5) { player.rightPart.level++; finishUpgrade(); } } 
+    if (player.leftPart.id === partId) { if(player.leftPart.level < 7) { player.leftPart.level++; finishUpgrade(); } } 
+    else if (player.rightPart.id === partId) { if(player.rightPart.level < 7) { player.rightPart.level++; finishUpgrade(); } } 
     else { 
         selectedNewPartId = partId; 
         selectUi.style.display = "none"; 
@@ -2486,9 +2565,11 @@ function takeDamage(amount) {
     playSound('damage');
 
     let dodgeChance = 0;
-    if (player.leftPart.id === 'shady') dodgeChance = 0.4 + (player.leftPart.level - 1) * 0.1;
-    else if (player.rightPart.id === 'shady') dodgeChance = 0.4 + (player.rightPart.level - 1) * 0.1;
+    if (player.leftPart.id === 'shady') dodgeChance = 0.2 + (player.leftPart.level - 1) * 0.1;
+    else if (player.rightPart.id === 'shady') dodgeChance = 0.2 + (player.rightPart.level - 1) * 0.1;
     
+    dodgeChance = Math.min(0.9, dodgeChance);
+
     if (Math.random() < dodgeChance) {
         createParticles(player.x + player.width/2, player.y + player.height/2, 'cyan');
         player.invincible = true; player.invincibleTimer = 180;
@@ -2652,7 +2733,7 @@ function updateNerOrbs() {
                 if (orb.isEnemy) {
                     enemyBullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius: 4, color: 'red' });
                 } else {
-                    spawnBullet(bx, by, bvx, bvy, 4, 4, 'yellow', 2, 'circle');
+                    spawnBullet(bx, by, bvx, bvy, 4, 4, 'yellow', 4, 'circle');
                 }
             }
             player.nerOrbs.splice(i, 1);
@@ -2674,18 +2755,20 @@ function updateNerOrbs() {
     }
 }
 
-function drawGameOver() { ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle = "white"; ctx.textAlign="center"; ctx.font="40px Arial"; ctx.fillText("게임 오버", canvas.width/2, canvas.height/2); }
+function drawGameOver() { 
+    ctx.fillStyle = "rgba(0,0,0,0.7)"; 
+    ctx.fillRect(0,0,canvas.width,canvas.height); 
+}
 
 preloadAssets().then(() => {
     initGame();
     animate();
 });
-// 폭탄 사용 함수 (사운드 포함)
+
 function useBomb() {
     if (player.bombs > 0) {
         player.bombs--;
 
-        // 💣 폭탄 효과음 재생 (boom.ogg)
         if (audioCtx) {
             const soundRequest = new XMLHttpRequest();
             soundRequest.open('GET', 'boom.ogg', true);
@@ -2703,17 +2786,14 @@ function useBomb() {
 
         flashTimer = 20; 
 
-        // 1. 화면 내의 모든 적 총알 제거
         enemyBullets = [];
 
-        // 2. 일반 적 즉사 처리
         for (let i = enemies.length - 1; i >= 0; i--) {
             let e = enemies[i];
             e.hp = 0;
             killEnemy(e, i); 
         }
 
-        // 3. 보스에게 데미지
         bosses.forEach(b => {
             if (b.state !== 'dying') {
                 b.hp -= 100; 
@@ -2731,20 +2811,20 @@ const EXTENDED_DICT = {
     tig: "검을 쪼개서 두개씩 탄환을 발사합니다. 레벨이 오를수록 연사력이 극대화됩니다. (최대레벨 시 쿨다운이 절반으로 감소)",
     leets: "보라색 탄환을 발사합니다. 맞으면 광폭화하여 모든 데미지를 100% 증가시키며, 공격력 배율은 레벨당 20%씩 증가합니다.",
     Ifrit: "주변을 맴도는 불의 정령을 최대 5~15개 소환합니다. 적이 탐지 사거리에 들어오면 유도 미사일처럼 날아갑니다.",
-    pira: "황철석색 탄환을 쏘며, 장착 시 경험치 획득량이 레벨당 20% 씩 증가합니다. ",
+    pira: "황철석색 탄환을 쏘며, 장착 시 경험치 획득량이 레벨당 40% 씩 증가합니다. ",
     diana: "갈색 탄환을 쏘며, 적에게 입힌 데미지의 5%만큼 체력을 회복합니다. 슈로와 같이 쓰지 마세요.",
     elena: "레벨당 1개씩 적을 끝까지 쫓아다니며 지속적인 딜을 넣는 유도 드론을 생성합니다.",
     shasha: "전방을 향해 넓은 부채꼴로 다수의 탄환을 흩뿌립니다. 레벨당 발사되는 탄환 수가 1개씩 늘어납니다.",
     silphir: "파란 탄환을 발사하며, 게임 진행 시간(최대 5분)에 비례하여 모든 파츠의 데미지를 최대 1.5배~2.5배까지 서서히 증가시키는 대기만성형입니다.",
-    lethe: "일정 주기마다 전방의 모든 것을 관통하는 강력한 레이저를 발사합니다.",
+    lethe: "일정 주기마다 전방의 모든 것을 관통하는 강력한 레이저를 발사합니다. 강해질수록 이동속도가 느려집니다",
     haley: "빨간색색 탄환을 쏘며, 이동 속도와 공격 속도를 레벨당 10%씩 올려줍니다. 무적 상태일 때는 공속이 2배로 폭증합니다.",
     amelia: "회색색 탄환을 쏘며, 모든 탄환에 유도 기능을 부여합니다.",
-    shady: "회색 탄환을 쏘며, 적의 공격에 피격당할 때 레벨당 40% ~ 80%의 높은 확률로 데미지를 회피합니다.",
+    shady: "회색 탄환을 쏘며, 적의 공격에 피격당할 때 레벨당 20% ~ 80%의 높은 확률로 데미지를 회피합니다.",
     rim: "전방으로 붉은 탄환 뭉치를 발사합니다. 피격 시 광림 상태가 되며 공격 속도가 2배가 됩니다",
     asana: "녹색 탄환을 쏘며, 장착 시 볼-요가 효과로 최대 체력이 레벨당 10% 증가하며, 매 1초마다 지속적으로 체력을 자동 회복합니다.",
     Belita: "붉은색 기탄을 발사하며, 현재 체력에 따라 쏘아내는 붉은 기탄의 크기와 공격력이 폭발적으로 증가합니다.",
     kidian: "검은 탄환을 부채꼴과 직선으로 섞어 쏩니다. 전체 레벨에 정비례하여 끝없이 데미지가 오릅니다",
-    naia: "주변을 공전하며 다방향으로 물총을 쏘는 나이아 미니미를 3개 이상 생성합니다. 나이아 미니미의 개수는 1~3개에서 지맘대로 바뀝니다. 퓨퓨!",
+    naia: "주변을 공전하며 다방향으로 물총을 쏘는 나이아 미니미를 생성합니다. 나이아 미니미의 개수는 1~3개에서 지맘대로 바뀝니다. 퓨퓨!",
     barie: "보라색 탄환을 쏩니다. 반대편 미니미의 공격을 그대로 복제합니다. 책 딸깍!",
     gabia: "갈색 탄환을 쏩니다. 피해를 100% 흡수하는 나무 방어막을 생성합니다. 방어막이 깨지면 서서히 재충전됩니다.",
     suro: "웨이브 형태의 탄막을 쏘며, 피격당한 횟수 1번당 공격력이 1%씩 누적 증가합니다(최대 100회).",
@@ -2759,7 +2839,6 @@ function openDict() {
     const list = document.getElementById('dict-list');
     list.innerHTML = "";
     
-    // 데이터 렌더링
     Object.keys(PARTS_INFO).forEach(key => {
         let info = PARTS_INFO[key];
         let desc = EXTENDED_DICT[key] || info.desc;
